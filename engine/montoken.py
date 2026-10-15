@@ -48,8 +48,39 @@ class Vocab:
         self.mv = top(dex.moves, n_move)
 
     def size(self):
-        return (18 + 6 + 7 + 18 + 18 + len(self.ab) + len(self.it) + 2
-                + 3 + 3 + 7 + len(STATUSES) + 4 + len(MOVE_FLAGS) + len(self.mv) + 2 + 8)
+        return (18 + 6 + 7 + 18 + 18 + 3 + len(self.ab) + len(self.it) + 2
+                + 3 + 3 + 7 + len(STATUSES) + 4 + len(MOVE_FLAGS) + len(self.mv) + 2 + 8 + 2 + len(TEMPO_NAMES))
+
+
+_REF = {}
+
+
+def move_multipliers(dex: Dex, atk: Mon, mid: str):
+    """기술 하나에 특성이 주는 배율, 도구가 주는 배율 — 데미지 엔진으로 (특성 있음 ÷ 없음)."""
+    from .damage import calc
+    import copy
+    if "ref" not in _REF:
+        sid = next((x for x in ("mew", "mewtwo", "alakazam", "espeon") if x in dex.species),
+                   next(k for k, v in dex.species.items() if v["types"] == ["Psychic"]))
+        _REF["ref"] = Mon(species=sid, ability="", item="", nature="serious", sp={"hp": 32, "def": 32, "spd": 32},
+                          moves=[]).setup(dex)
+        _REF["ref"].ability = "noability"
+
+    def dmg(a):
+        try:
+            r = calc(dex, a, _REF["ref"], mid)
+            return sum(sum(h) / len(h) for h in r.rolls if h)   # 타격마다 16단계 평균의 합
+        except Exception:
+            return 0.0
+    full = copy.copy(atk)
+    no_ab = copy.copy(atk)
+    no_ab.ability = "noability"
+    none = copy.copy(no_ab)
+    none.item = ""
+    d_full, d_noab, d_none = dmg(full), dmg(no_ab), dmg(none)
+    ra = d_full / d_noab if d_noab > 0 else 1.0
+    ri = d_noab / d_none if d_none > 0 else 1.0
+    return min(3.0, ra), min(3.0, ri)
 
 
 def _eff(dex: Dex, atk_type, def_types):
@@ -78,9 +109,12 @@ def token(dex: Dex, s: dict, vocab: Vocab) -> np.ndarray:
     # 받는 상성 (log2, 특성 무효 반영)
     imm = ABILITY_IMMUNE.get(ab, "")
     v += [(-3.0 if (t == imm) else (math.log2(e) if (e := _eff(dex, t, types)) > 0 else -3.0)) for t in TYPES]
-    # 주는 상성: 각 방어 타입을 가장 세게 치는 기술의 (위력 × 자속 × 상성 × 공격 실능) 크기
+    # 주는 상성: 각 방어 타입을 가장 세게 치는 기술의 (위력 × 자속 × 특성·도구 배율 × 상성 × 공격 실능) 크기
+    # 특성·도구 배율은 데미지 엔진으로 잰다 (테크니션 + 불릿펀치, 철주먹 + 펀치, 적응력 자속 2배 …)
     off = [0.0] * 18
     mv_rows = []
+    ab_mul, it_mul = [], []
+    atk_mon = mm if is_mega else m
     for mid in m.moves:
         mo = dex.moves.get(mid)
         if not mo:
@@ -89,11 +123,16 @@ def token(dex: Dex, s: dict, vocab: Vocab) -> np.ndarray:
         if mo["category"] == "Status" or not mo.get("basePower"):
             continue
         stab = 1.5 if mo["type"] in types else 1.0
-        atk = (mm if is_mega else m).stats["atk" if mo["category"] == "Physical" else "spa"]
+        ra, ri = move_multipliers(dex, atk_mon, mid)
+        ab_mul.append(ra)
+        it_mul.append(ri)
+        atk = atk_mon.stats["atk" if mo["category"] == "Physical" else "spa"]
         for k, t in enumerate(TYPES):
-            val = mo["basePower"] * stab * _eff(dex, mo["type"], [t]) * atk / (100 * 150)
+            val = mo["basePower"] * stab * ra * ri * _eff(dex, mo["type"], [t]) * atk / (100 * 150)
             off[k] = max(off[k], val)
     v += [min(4.0, x) for x in off]
+    v += [max(ab_mul, default=1.0) - 1.0, (sum(ab_mul) / len(ab_mul) - 1.0) if ab_mul else 0.0,
+          max(it_mul, default=1.0) - 1.0]
     # 특성 · 도구 효과
     acb = set((dex.abilities.get(ab) or {}).get("callbacks") or [])
     v += [1.0 if c in acb else 0.0 for c in vocab.ab]
@@ -141,6 +180,11 @@ def token(dex: Dex, s: dict, vocab: Vocab) -> np.ndarray:
     wp = weather_profile(dex, s)
     v += [1.0 if w in wp["sets"] else 0.0 for w in ("rain", "sun", "sand", "snow")]
     v += [wp["gain"][w] for w in ("rain", "sun", "sand", "snow")]
+    # 랭크업 · 장판 · 선공기 · 교체 · 회복
+    v += tempo_profile(dex, s, atk_mon)
+    # 특성 ↔ 도구·기술 맞물림 (포이즌힐 + 맹독구슬, 근성 + 화염구슬, 곡예 등)
+    al = ability_links(dex, s)
+    v += [al["link"], 1.0 if al["selfStatus"] else 0.0]
     return np.array(v, np.float32)
 
 
@@ -221,3 +265,103 @@ def weather_profile(dex: Dex, s: dict) -> dict:
     if "Ice" in types:
         gain["snow"] += 0.5 * m.stats["def"] / 150.0
     return {"sets": sets, "gain": gain}
+
+
+# ======================================================================== 특성 ↔ 도구 · 기술 (데미지 배율 밖의 관계)
+# 스스로 상태이상을 거는 도구 → 그 상태이상으로 이득을 보는 특성·기술
+SELF_STATUS_ITEM = {"toxicorb": "tox", "flameorb": "brn"}
+STATUS_BENEFIT = {   # 특성: {상태: 이득(대략, 턴당 HP 비율 또는 화력 배율 − 1)}
+    "poisonheal": {"tox": 0.125 + 0.25, "psn": 0.125 + 0.125},   # 회복 1/8 + 독 데미지 무효
+    "guts": {"brn": 0.5 + 0.5, "tox": 0.5, "psn": 0.5, "par": 0.5},   # 공격 1.5배 (화상 반감도 무시)
+    "toxicboost": {"tox": 0.5, "psn": 0.5}, "flareboost": {"brn": 0.5},
+    "marvelscale": {"brn": 0.5, "tox": 0.5, "psn": 0.5, "par": 0.5}, "quickfeet": {"brn": 0.5, "tox": 0.5, "psn": 0.5, "par": 0.5},
+}
+STATUS_MOVES = {"facade": 1.0}      # 상태이상이면 위력 2배
+CONSUMABLE_ABILITY = {"unburden": 1.0, "harvest": 0.5, "cheekpouch": 0.3, "ripen": 0.5, "gluttony": 0.3}
+RECOIL_ITEM_ABILITY = {("magicguard", "lifeorb"): 0.1, ("sheerforce", "lifeorb"): 0.1}
+
+
+def ability_links(dex: Dex, s: dict) -> dict:
+    """특성과 도구·기술의 맞물림 (데미지 엔진이 안 재는 것). 값이 클수록 세트가 서로 맞물림."""
+    ab = to_id(s.get("ability") or "")
+    item = to_id(s.get("item") or "")
+    moves = [to_id(m) for m in s.get("moves") or []]
+    it = dex.items.get(item) or {}
+    status = SELF_STATUS_ITEM.get(item)
+    link, why = 0.0, []
+    if status:
+        b = STATUS_BENEFIT.get(ab, {}).get(status, 0.0)
+        mv = sum(STATUS_MOVES.get(m, 0.0) for m in moves)
+        if b or mv:
+            link += b + 0.5 * mv
+            why.append(f"{ab}+{item}" + ("+facade" if mv else ""))
+        else:
+            link -= 0.3          # 이득 없이 스스로 상태이상 = 손해
+            why.append(f"{item}(이득 없음)")
+    if ab in CONSUMABLE_ABILITY and (it.get("isBerry") or item in {"focussash", "whiteherb", "mentalherb",
+                                                                    "electricseed", "psychicseed", "grassyseed", "mistyseed"}):
+        link += CONSUMABLE_ABILITY[ab]
+        why.append(f"{ab}+{item}")
+    if (ab, item) in RECOIL_ITEM_ABILITY:
+        link += RECOIL_ITEM_ABILITY[(ab, item)]
+        why.append(f"{ab}+{item}")
+    if ab == "klutz" and item and item not in {"", "toxicorb", "flameorb"}:
+        link -= 0.2
+    return {"link": link, "why": why, "selfStatus": status or ""}
+
+
+# ======================================================================== 랭크업 · 장판 · 선공기 (스피드와 무관한 화력 구분)
+TEMPO_NAMES = ["boost_atk", "boost_spa", "boost_spe", "boost_def", "boost_spd", "setup_power",
+               "hz_rocks", "hz_spikes", "hz_tspikes", "hz_web", "hz_remove",
+               "prio_power", "prio_level", "speed_power", "pivot", "drain_heal", "protect", "prankster_status"]
+HAZARDS = {"stealthrock": 6, "spikes": 7, "toxicspikes": 8, "stickyweb": 9}
+HAZARD_REMOVAL = {"rapidspin", "defog", "tidyup", "courtchange", "mortalspin"}
+
+
+def tempo_profile(dex: Dex, s: dict, atk_mon: Mon) -> list:
+    """랭크업 기술(칼춤·용춤·배북·껍질깨기…)의 양과 그걸로 늘어나는 화력, 장판(스텔스록·끈적끈적네트…),
+    선공기 화력(불릿펀치·신속 — 스피드 조절·끈적끈적네트와 무관), 일반 기술 화력(스피드에 좌우),
+    교체 기술·흡수/회복·방어, 짓궂은마음 변화기."""
+    f = [0.0] * len(TEMPO_NAMES)
+    ab = to_id(s.get("ability") or "")
+    best = {"Physical": 0.0, "Special": 0.0}
+    prio_best, prio_lv, speed_best = 0.0, 0, 0.0
+    for mid in atk_mon.moves:
+        mo = dex.moves.get(mid)
+        if not mo:
+            continue
+        if mo["category"] != "Status" and mo.get("basePower"):
+            stab = 1.5 if mo["type"] in atk_mon.types else 1.0
+            ra, ri = move_multipliers(dex, atk_mon, mid)
+            st = atk_mon.stats["atk" if mo["category"] == "Physical" else "spa"]
+            val = mo["basePower"] * stab * ra * ri * st / (100 * 150)
+            best[mo["category"]] = max(best[mo["category"]], val)
+            if mo.get("priority", 0) > 0:
+                if val > prio_best:
+                    prio_best, prio_lv = val, mo["priority"]
+            else:
+                speed_best = max(speed_best, val)
+        b = mo.get("boosts") if mo.get("target") == "self" else None
+        b = b or ((mo.get("self") or {}).get("boosts") if mo["category"] == "Status" else None)
+        if mid == "bellydrum":
+            b = {"atk": 6}
+        if b:
+            for k, idx in (("atk", 0), ("spa", 1), ("spe", 2), ("def", 3), ("spd", 4)):
+                f[idx] += b.get(k, 0)
+        if mo.get("sideCondition") in HAZARDS and mo.get("target") == "foeSide":
+            f[HAZARDS[mo["sideCondition"]]] = 1.0
+        if mid in HAZARD_REMOVAL:
+            f[10] = 1.0
+        if mo.get("selfSwitch"):
+            f[14] += 1.0
+        if mo.get("drain") or (mo.get("flags") or {}).get("heal"):
+            f[15] += 1.0
+        if mo.get("stallingMove"):
+            f[16] = 1.0
+        if ab == "prankster" and mo["category"] == "Status":
+            f[17] += 1.0
+    # 랭크업으로 늘어나는 화력: 공격 랭크 n 단계 = (2+n)/2 배
+    stage = lambda n: (2 + min(6, max(0, n))) / 2.0 - 1.0
+    f[5] = stage(f[0]) * best["Physical"] + stage(f[1]) * best["Special"]
+    f[11], f[12], f[13] = prio_best, float(prio_lv), speed_best
+    return f

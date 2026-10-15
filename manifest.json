@@ -81,6 +81,10 @@
    "sha256": "63668fddaf99cd7875997bb6b3468ba90ec8e1c812ec208a12957fe7b1ab3eac",
    "size": 7261
   },
+  "engine/bringnet.py": {
+   "sha256": "95014a59251cb418de24a6976a493a34fc3518cfff6628b0156467cc35852624",
+   "size": 19755
+  },
   "engine/builder.py": {
    "sha256": "c4e57a8ae193242d247f29cb6f4ca9d681b9d13ff8b3cce6cc248816fae047a0",
    "size": 15414
@@ -108,6 +112,10 @@
   "engine/mon.py": {
    "sha256": "871e3b41367fbf7f3a478f67aff286a591092d685eac5e8c4d3cf11937eec0a7",
    "size": 7860
+  },
+  "engine/montoken.py": {
+   "sha256": "61651125c32b5a6072feafcb8c0b33299aa023f2a3acc3921141a4ddb3d41ec4",
+   "size": 19201
   },
   "engine/nets.py": {
    "sha256": "23da732410fd5a78bd142757ae82dcaa3e6a2dc03a22791eea44fda845c0419b",
@@ -158,12 +166,16 @@
    "size": 13545
   },
   "engine/teamopt.py": {
-   "sha256": "cfcfab8c66409a35ca11eb22c5071748444a2d49160b1a049eb23c9c40e27834",
-   "size": 14263
+   "sha256": "fbf45fc6cb80b9cb533b12a27500fafe80dfc3a8beb311b9d76808c62ec8f6a6",
+   "size": 14646
   },
   "features/ledger.json": {
    "sha256": "f74531a1367a29b40c82eca6e17f838a92abb29dc1ae04f4c9bd1d6a054be093",
    "size": 7925
+  },
+  "models/bring_singles.json": {
+   "sha256": "3970bf21a08999c27d8f8e0f684aa3b550ea35c6126eb6ff79b7be5084e00ca3",
+   "size": 34677
   },
   "models/history/net_singles_1792054611.json": {
    "sha256": "ebd9b74c3ece913730e60cd8d15cad0d86699c6148ccb4e5b2edb582bcd2d3c8",
@@ -182,16 +194,16 @@
    "size": 2065
   },
   "reports/insights.json": {
-   "sha256": "7e018be89c7634cdbecb3e648fab392d2e85f35265aa4beb3e51633e085c4ef3",
-   "size": 4344
+   "sha256": "7e95308c164ea7c0824cd7894cb396514a902438fe5b4a24b8b59e922d0f9a5c",
+   "size": 4813
   },
   "reports/insights.md": {
-   "sha256": "2bb07bde9000d21bec69a1a566660a0c6467d246fd82c4c4faf0a730d22ef773",
-   "size": 2565
+   "sha256": "b5ca015cc824139a732aae4a04f1bc3e781933b28a49f9dd3db86d467284ea3a",
+   "size": 2665
   },
   "reports/selftest.json": {
-   "sha256": "b426a3909006d75bfe9ec9e749d8806589bbc9f43b581e366c88ff4034eed3ab",
-   "size": 1822
+   "sha256": "b6f6e9ed0824a96205eab20321fea6a63bef29a50f19f4d84e60a5f3f8e986c2",
+   "size": 340
   },
   "reports/training_history.json": {
    "sha256": "36dcb5112e603b461b351e37e9b8fa181e7b1461782814b29cba21449920f850",
@@ -226,8 +238,8 @@
    "size": 3630272
   },
   "tests/selftest.py": {
-   "sha256": "ccae9badb4a4900ad9665b9ba558f02a4f54b07133c89a0216620507c25ccc15",
-   "size": 13460
+   "sha256": "0b4eaa6a380461184401d3988867de373dbd018bf5b301687e0a813cd12042bd",
+   "size": 14197
   },
   "tools/arena.py": {
    "sha256": "cd5a1660c31885a4fb70c4bf1329e2511d07c695da0e2f09207e9728d0bb627b",
@@ -270,8 +282,8 @@
    "size": 4664
   },
   "tools/ps_search.js": {
-   "sha256": "9a9fc8cbb42e73dc2aee40c6f36aea786afb107d4d00b4233080b5261e22e7ae",
-   "size": 16048
+   "sha256": "fbec3fe645d18926c26af66135fb2e02ea8abeb6598b5cd0d4ffbb282945e0e2",
+   "size": 23851
   },
   "tools/setup_showdown.py": {
    "sha256": "352ec94657f10380a231251e40e31ebabda2300b4d975c988d0dc732579118a5",
@@ -313,6 +325,11 @@
   }
  },
  "models": {
+  "bring_singles": {
+   "created": "2026-10-15T09:24:27+00:00",
+   "games": null,
+   "league": {}
+  },
   "net_singles": {
    "created": "2026-10-15T08:55:52+00:00",
    "games": 1501,

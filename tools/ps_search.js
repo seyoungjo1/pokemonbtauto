@@ -54,6 +54,7 @@ module.exports = function makeSearch(Battle) {
 					left++;
 				}
 				if (ps.noItem) { p.item = ''; }
+				if (!ps.fainted && p.status === 'tox') p.statusState.stage = Math.max(0, Math.min(15, ps.toxStage || 1));
 			});
 			side.pokemonLeft = left;
 			if ((sc.megaUsed || {})[side.id]) for (const p of side.pokemon) p.canMegaEvo = null;
@@ -70,12 +71,26 @@ module.exports = function makeSearch(Battle) {
 		if (!def.runImmunity(move.type)) return 0;
 		const phys = move.category === 'Physical';
 		let bp = move.basePower || 60;
-		if (move.multihit) bp *= Array.isArray(move.multihit) ? 3 : move.multihit;
-		const A = atk.getStat(phys ? 'atk' : 'spa', false, true);
+		// 특성·도구 배율 (테크니션 + 불릿펀치 등) — 빠른 추정이라 대표적인 것만
+		const fl = move.flags || {};
+		if (atk.hasAbility('technician') && bp <= 60) bp *= 1.5;
+		if (atk.hasAbility('toughclaws') && fl.contact) bp *= 1.3;
+		if (atk.hasAbility('ironfist') && fl.punch) bp *= 1.2;
+		if (atk.hasAbility('sharpness') && fl.slicing) bp *= 1.5;
+		if (atk.hasAbility('strongjaw') && fl.bite) bp *= 1.5;
+		if (atk.hasAbility('megalauncher') && fl.pulse) bp *= 1.5;
+		if (atk.hasAbility('sheerforce') && (move.secondary || move.secondaries)) bp *= 1.3;
+		if (move.multihit) bp *= Array.isArray(move.multihit) ? (atk.hasAbility('skilllink') ? move.multihit[1] : 3) : move.multihit;
+		let A = atk.getStat(phys ? 'atk' : 'spa', false, true);
+		if (phys && (atk.hasAbility('hugepower') || atk.hasAbility('purepower'))) A *= 2;
+		if (atk.hasItem(phys ? 'choiceband' : 'choicespecs')) A *= 1.5;
 		const D = Math.max(1, def.getStat(phys ? 'def' : 'spd', false, true));
 		let d = (Math.floor(Math.floor(22 * bp * A / D) / 50) + 2) * 0.925;
-		if (atk.hasType(move.type)) d *= 1.5;
-		d *= Math.pow(2, b.dex.getEffectiveness(move.type, def));
+		if (atk.hasType(move.type)) d *= atk.hasAbility('adaptability') ? 2 : 1.5;
+		const eff = b.dex.getEffectiveness(move.type, def);
+		d *= Math.pow(2, eff);
+		if (atk.hasItem('lifeorb')) d *= 1.3;
+		if (eff > 0 && atk.hasItem('expertbelt')) d *= 1.2;
 		if (phys && atk.status === 'brn') d *= 0.5;
 		const acc = move.accuracy === true ? 1 : (move.accuracy || 100) / 100;
 		return (d / def.maxhp) * acc;
@@ -84,6 +99,8 @@ module.exports = function makeSearch(Battle) {
 	const SETUP = new Set(['swordsdance', 'nastyplot', 'dragondance', 'calmmind', 'bulkup', 'quiverdance', 'shellsmash', 'coil', 'irondefense', 'agility', 'victorydance', 'tidyup', 'bellydrum']);
 	const PROTECT = new Set(['protect', 'detect', 'spikyshield', 'kingsshield', 'banefulbunker', 'silktrap', 'burningbulwark']);
 	const RECOVER = new Set(['recover', 'roost', 'slackoff', 'softboiled', 'moonlight', 'morningsun', 'synthesis', 'milkdrink', 'shoreup', 'strengthsap']);
+	const ANTI_SETUP = new Set(['haze', 'clearsmog', 'roar', 'whirlwind', 'dragontail', 'circlethrow', 'encore', 'spectralthief', 'topsyturvy']);
+	const HAZARD_MOVES = new Set(['stealthrock', 'spikes', 'toxicspikes', 'stickyweb']);
 
 	function bestVs(b, atk, def) {
 		let best = 0;
@@ -134,9 +151,18 @@ module.exports = function makeSearch(Battle) {
 				const move = b.dex.moves.get(mv.id);
 				if (move.category === 'Status') {
 					let s = 0.05;
-					if (PROTECT.has(move.id)) s = doubles ? 0.25 : 0.02;
+					const myBoost = ['atk', 'spa', 'spe', 'def', 'spd'].reduce((t, k) => t + Math.max(0, me.boosts[k]), 0);
+					const foeBoost = Math.max(0, ...foes.map(f => ['atk', 'spa', 'spe'].reduce((t, k) => t + Math.max(0, f.boosts[k]), 0)));
+					const foeStatus = foes.some(f => f.status && f.status !== 'fnt');
+					const foeSub = foes.some(f => f.volatiles.substitute);
+					if (PROTECT.has(move.id)) s = doubles ? 0.25 : (foeStatus || me.volatiles.wish ? 0.3 : 0.02);
 					else if (SETUP.has(move.id)) s = hpf > 0.7 && threat < 0.4 ? 0.45 : 0.02;
-					else if (RECOVER.has(move.id)) s = hpf < 0.5 ? 0.5 : 0.0;
+					else if (RECOVER.has(move.id) || move.id === 'wish') s = hpf < 0.5 ? 0.5 : 0.0;
+					else if (move.id === 'batonpass' || move.id === 'shedtail') s = (myBoost >= 2 || move.id === 'shedtail') && bench.length && (threat >= 0.45 || hpf < 0.5) ? 0.8 : 0.0;
+					else if (move.id === 'substitute') s = !me.volatiles.substitute && hpf > 0.5 && threat < 0.25 ? 0.4 : 0.0;
+					else if (ANTI_SETUP.has(move.id)) s = foeBoost >= 2 ? 0.9 : 0.02;
+					else if (move.status || move.id === 'toxic') s = !foeSub && foes.some(f => !f.status && f.runStatusImmunity(move.status || 'tox')) ? (move.status === 'slp' ? 0.6 : 0.35) : 0.0;
+					else if (HAZARD_MOVES.has(move.id)) s = !side.foe.sideConditions[move.sideCondition || move.id] && side.foe.pokemonLeft >= 2 ? 0.4 : 0.0;
 					cands.push({ c: `move ${j + 1}`, s });
 					return;
 				}
@@ -151,6 +177,8 @@ module.exports = function makeSearch(Battle) {
 						const fr = estFrac(b, me, f, move) * (spread && doubles && foes.length > 1 ? 0.75 : 1);
 						const fh = f.hp / f.maxhp;
 						s += Math.min(1, fr / Math.max(fh, 0.01)) * 0.6 + (fr >= fh ? 0.6 : 0) + (fr >= fh && move.priority > 0 ? 0.4 : 0);
+						if (f.volatiles.substitute) s += (move.flags.sound || move.infiltrates || me.hasAbility('infiltrator')) ? 0.4 : (move.multihit ? 0.25 : -0.1);
+						if (ANTI_SETUP.has(move.id) && ['atk', 'spa', 'spe'].reduce((t, k) => t + Math.max(0, f.boosts[k]), 0) >= 2) s += 0.8;
 					}
 					if (spread && move.target === 'allAdjacent' && doubles) {
 						const ally = side.active[1 - si];
@@ -179,18 +207,82 @@ module.exports = function makeSearch(Battle) {
 	//   나와 있는 둘이 서로 가장 센 기술을 주고받고(빠른 쪽 먼저), 쓰러지면 그 편은 남은 포켓몬 중
 	//   지금 상대에게 가장 유리한 포켓몬을 낸다. 끝까지 남은 쪽의 남은 HP 로 승률을 정한다.
 	function raceValue(b, meSide, oppSide) {
-		const live = (side) => side.pokemon.filter(p => !p.fainted && p.hp > 0).map(p => ({ p, hp: p.hp / p.maxhp, act: p.isActive }));
+		// 사람이 머릿속으로 하는 '남은 포켓몬끼리의 대결'을 턴 단위로:
+		//   공격 / 회복(회복기·희망사항) / 맹독 걸기 / 대타 세우기 중 그 상황에 맞는 것을 하고,
+		//   턴 끝에 누적 데미지(맹독 1/16씩 증가·독·화상·모래)와 회복(먹다남은음식·검은진흙·포이즌힐)을 적용.
+		//   새로 나오는 포켓몬은 장판(스텔스록·압정·끈적끈적네트)을 밟는다. 선공기는 스피드와 무관하게 먼저.
+		const tr = !!b.field.getPseudoWeather('trickroom');
+		const sand = b.field.isWeather('sandstorm');
+		const has = (p, set) => p.moveSlots.some(ms => set.has(ms.id) && ms.pp > 0);
+		const prioBest = (p, q) => {
+			let best = 0;
+			for (const ms of p.moveSlots) {
+				const m = b.dex.moves.get(ms.id);
+				if (m.priority > 0 && m.category !== 'Status') best = Math.max(best, estFrac(b, p, q, m));
+			}
+			return best;
+		};
+		const resid = (p) => {
+			let r = 0;
+			const mg = p.hasAbility('magicguard');
+			if (p.hasItem('leftovers')) r += 1 / 16;
+			if (p.hasItem('blacksludge')) r += p.hasType('Poison') ? 1 / 16 : -1 / 8;
+			if (p.hasAbility('poisonheal') && (p.status === 'psn' || p.status === 'tox')) r += 1 / 8;
+			else if (!mg) {
+				if (p.status === 'psn') r -= 1 / 8;
+				if (p.status === 'brn') r -= 1 / 16;
+			}
+			if (sand && !mg && !p.hasType('Rock') && !p.hasType('Ground') && !p.hasType('Steel') && !p.hasAbility('overcoat') && !p.hasItem('safetygoggles')) r -= 1 / 16;
+			if (p.volatiles.leechseed && !mg) r -= 1 / 8;
+			return r;
+		};
+		const mk = (p, act) => ({
+			p, act, hp: p.hp / p.maxhp, sub: p.volatiles.substitute ? (p.volatiles.substitute.hp || 0) / p.maxhp : 0,
+			status: p.status, tox: p.status === 'tox' ? Math.max(1, (p.statusState && p.statusState.stage) || 1) : 0,
+			heal: has(p, RECOVER) ? 0.5 : (has(p, new Set(['wish'])) ? 0.4 : 0), heals: 0,
+			canTox: has(p, new Set(['toxic'])), canSub: has(p, new Set(['substitute'])), resid: resid(p),
+			spe: p.getStat('spe', false, true) * (p.status === 'par' ? 0.5 : 1), entered: act,
+		});
+		const live = (side) => side.pokemon.filter(p => !p.fainted && p.hp > 0).map(p => mk(p, p.isActive));
 		let A = live(meSide), B = live(oppSide);
 		if (!A.length || !B.length) return A.length ? 1 : (B.length ? 0 : 0.5);
-		const tr = !!b.field.getPseudoWeather('trickroom');
+		const enter = (x, side) => {
+			if (x.entered) return;
+			x.entered = true;
+			const sc = side.sideConditions;
+			if (x.p.hasItem('heavydutyboots') || x.p.hasAbility('magicguard')) return;
+			const grounded = !x.p.hasType('Flying') && !x.p.hasAbility('levitate') && !x.p.hasItem('airballoon');
+			if (sc.stealthrock) x.hp -= 0.125 * Math.pow(2, b.dex.getEffectiveness('Rock', x.p));
+			if (sc.spikes && grounded) x.hp -= [0, 1 / 8, 1 / 6, 1 / 4][Math.min(3, sc.spikes.layers || 1)];
+			if (sc.stickyweb && grounded) x.spe *= 2 / 3;
+			if (sc.toxicspikes && grounded && !x.status && !x.p.hasType('Poison') && !x.p.hasType('Steel')) {
+				x.status = (sc.toxicspikes.layers || 1) >= 2 ? 'tox' : 'psn';
+				x.tox = x.status === 'tox' ? 1 : 0;
+				x.resid = resid(x.p) - (x.status === 'psn' && !x.p.hasAbility('poisonheal') ? 1 / 8 : 0);
+			}
+		};
 		const memo = new Map();
 		const hit = (x, y) => {
 			const k = x.p.position + x.p.side.id + '>' + y.p.position + y.p.side.id + x.p.species.id + y.p.species.id;
 			if (!memo.has(k)) memo.set(k, Math.max(0.0001, bestVs(b, x.p, y.p)));
 			return memo.get(k);
 		};
-		const spe = (x) => x.p.getStat('spe', false, true) * (x.p.status === 'par' ? 0.5 : 1);
-		const first = (x, y) => tr ? spe(x) < spe(y) : spe(x) > spe(y);
+		const first = (x, y) => tr ? x.spe < y.spe : x.spe > y.spe;
+		const toxable = (y) => !y.status && !y.sub && !y.p.hasType('Steel') && !y.p.hasType('Poison') &&
+			!y.p.hasAbility('immunity') && !y.p.hasAbility('purifyingsalt') && !y.p.hasAbility('comatose') && !y.p.hasAbility('magicbounce');
+		const act = (x, y) => {
+			if (x.hp <= 0) return;
+			const dmg = hit(x, y);
+			if (x.heal && x.heals < 8 && x.hp < 0.5 && hit(y, x) < x.heal - 0.05) { x.hp = Math.min(1, x.hp + x.heal); x.heals++; return; }
+			if (x.canTox && toxable(y) && dmg < y.hp * 0.5) { y.status = 'tox'; y.tox = 1; return; }
+			if (x.canSub && !x.sub && x.hp > 0.3 && hit(y, x) < 0.25 && dmg < y.hp * 0.5) { x.hp -= 0.25; x.sub = 0.25; return; }
+			if (y.sub > 0) { y.sub = Math.max(0, y.sub - dmg); return; }
+			// 기합의띠·옹골참: HP 가득에서 한 방이면 1 남김 (한 번)
+			if (y.hp >= 0.999 && dmg >= y.hp && !y.endured && (y.p.hasItem('focussash') || y.p.hasAbility('sturdy'))) { y.hp = 0.003; y.endured = true; }
+			else y.hp -= dmg;
+			// 생명의구슬 반동 (HP 1 남은 포켓몬은 한 번 치고 쓰러짐)
+			if (x.p.hasItem('lifeorb') && !x.p.hasAbility('magicguard') && !x.p.hasAbility('sheerforce')) x.hp -= 0.1;
+		};
 		const pickNext = (mine, foe) => {
 			let best = null, bs = -1e9;
 			for (const x of mine) {
@@ -201,17 +293,27 @@ module.exports = function makeSearch(Battle) {
 		};
 		let a = A.find(x => x.act) || A[0];
 		let o = B.find(x => x.act) || B[0];
+		enter(a, meSide); enter(o, oppSide);
 		let guard = 0;
-		while (a && o && guard++ < 40) {
-			const order = first(a, o) ? [[a, o], [o, a]] : [[o, a], [a, o]];
-			for (const [x, y] of order) {
+		while (a && o && guard++ < 60) {
+			// 선공기로 쓰러뜨릴 수 있으면 스피드와 무관하게 먼저
+			const pa = prioBest(a.p, o.p) >= o.hp && !o.sub, po = prioBest(o.p, a.p) >= a.hp && !a.sub;
+			let order = first(a, o) ? [[a, o], [o, a]] : [[o, a], [a, o]];
+			if (pa && !po) order = [[a, o], [o, a]];
+			else if (po && !pa) order = [[o, a], [a, o]];
+			for (const [x, y] of order) act(x, y);
+			for (const x of [a, o]) {
 				if (x.hp <= 0) continue;
-				y.hp -= hit(x, y);
+				x.hp = Math.min(1, x.hp + x.resid);
+				if (x.status === 'tox' && !x.p.hasAbility('poisonheal') && !x.p.hasAbility('magicguard')) { x.hp -= x.tox / 16; x.tox = Math.min(15, x.tox + 1); }
 			}
-			if (a.hp <= 0) { A = A.filter(x => x !== a); a = A.length ? pickNext(A, o) : null; }
-			if (o.hp <= 0) { B = B.filter(x => x !== o); o = B.length ? pickNext(B, a || o) : null; }
+			if (a.hp <= 0) { A = A.filter(x => x !== a); a = A.length ? pickNext(A, o) : null; if (a) enter(a, meSide); }
+			if (o.hp <= 0) { B = B.filter(x => x !== o); o = B.length ? pickNext(B, a || o) : null; if (o) enter(o, oppSide); }
 		}
 		const ma = A.reduce((s, x) => s + Math.max(0, x.hp), 0), mb = B.reduce((s, x) => s + Math.max(0, x.hp), 0);
+		// 한쪽이 전멸하는 결말이면 남은 HP 가 적어도 승패는 확실하다 (HP 1 핫삼의 올킬도 승리)
+		if (!B.length && A.length) return 0.88 + 0.1 * Math.min(1, ma);
+		if (!A.length && B.length) return 0.12 - 0.1 * Math.min(1, mb);
 		return 1 / (1 + Math.exp(-2.5 * (ma - mb)));
 	}
 	function evalSide(side) {
@@ -219,9 +321,11 @@ module.exports = function makeSearch(Battle) {
 		for (const p of side.pokemon) {
 			if (p.fainted || p.hp <= 0) continue;
 			v += 0.35 + 0.65 * p.hp / p.maxhp;
-			if (p.status && p.status !== 'fnt') v -= p.status === 'slp' ? 0.12 : 0.07;
+			if (p.status && p.status !== 'fnt') v -= p.status === 'slp' ? 0.12 : (p.status === 'tox' ? 0.06 + 0.02 * ((p.statusState && p.statusState.stage) || 1) : 0.07);
 			if (p.isActive) {
-				for (const k of ['atk', 'spa', 'spe']) v += 0.03 * Math.max(0, p.boosts[k]);
+				for (const k of ['atk', 'spa', 'spe']) v += 0.03 * Math.max(0, p.boosts[k]) - 0.02 * Math.max(0, -p.boosts[k]);
+				for (const k of ['def', 'spd']) v += 0.015 * p.boosts[k];
+				if (p.volatiles.substitute) v += 0.06;
 			}
 		}
 		return v;
@@ -232,7 +336,10 @@ module.exports = function makeSearch(Battle) {
 		const material = 1 / (1 + Math.exp(-2.2 * (evalSide(s[0]) - evalSide(s[1]))));
 		if (mode === 'material') return material;
 		const race = raceValue(b, s[0], s[1]);
-		return mode === 'race' ? race : 0.65 * race + 0.35 * material;
+		if (mode === 'race') return race;
+		// 대결 결론이 확실하면(전멸) 남은 마리 수보다 그 결론을 믿는다
+		const sure = race >= 0.88 || race <= 0.12;
+		return sure ? 0.9 * race + 0.1 * material : 0.65 * race + 0.35 * material;
 	}
 
 	function mulberry(a) {
@@ -367,5 +474,5 @@ module.exports = function makeSearch(Battle) {
 		return { M, N, played, avgTurns: played ? turns / played : 0, ms: Date.now() - t0 };
 	}
 
-	return { search, build, rolloutChoice, matrix, playout };
+	return { search, build, rolloutChoice, matrix, playout, leafValue, raceValue };
 };
