@@ -10,6 +10,7 @@
 <header class="top">
   <div class="brand"><span class="ball"></span><div>챔피언스 배틀 AI<br><small id="dataVer">데이터 확인 중…</small></div></div>
   <nav class="tabs" id="tabs">
+    <button data-p="build">파티 짜기</button>
     <button data-p="team">팀</button>
     <button data-p="bring">선출</button>
     <button data-p="battle" class="on">대전</button>
@@ -26,6 +27,36 @@
 </header>
 
 <main>
+  <!-- ================= 파티 짜기 ================= -->
+  <section class="page" id="p-build">
+    <div class="grid" style="grid-template-columns: 360px 1fr">
+      <div class="col" style="gap:14px">
+        <div class="card">
+          <div class="hd">내 포켓몬 보관함 <span class="sub" id="boxCount"></span></div>
+          <div class="bd col" style="gap:8px">
+            <div id="boxAdd"></div>
+            <div class="chips" id="boxList"></div>
+            <div class="row"><button class="btn sm" id="boxPaste">여러 마리 붙여넣기</button><button class="btn sm ghost" id="boxClear">비우기</button>
+              <span class="small muted right">비워 두면 챔피언스 전체에서 고릅니다</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="hd">AI 파티 짜기</div>
+          <div class="bd col" style="gap:10px">
+            <div class="small muted">보관함 안에서 6마리를 고르고 <b>특성·도구·성격·SP·기술</b>까지 정합니다. 후보 파티를 실제로 자주 나오는 메타 파티들과 <b>선출 → 끝까지 배틀</b> 시켜 평가하고, 한 군데씩 바꿔 가며 승률이 오르는 쪽으로 다듬습니다.</div>
+            <label class="chk small"><input type="checkbox" id="buildLock">지금 팀 탭의 포켓몬은 고정하고 나머지만 채우기</label>
+            <div class="row"><span class="small">다듬기 횟수</span><input type="number" id="buildSteps" value="20" min="0" max="300" style="width:80px"><span class="small muted">많을수록 오래 걸리고 정확</span></div>
+            <div class="row"><button class="btn primary" id="buildBtn">최선의 파티 짜기</button><button class="btn" id="oneBtn">1마리 추천</button></div>
+            <div class="small muted" id="simHint"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="gap:14px">
+        <div class="card"><div class="hd">결과 <span class="sub" id="buildStatus"></span></div><div class="bd" id="buildRes"><div class="empty">보관함을 채우고 ‘최선의 파티 짜기’를 누르세요.</div></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= 팀 ================= -->
   <section class="page" id="p-team">
     <div class="grid" style="grid-template-columns: 260px 1fr">
@@ -54,12 +85,13 @@
   <section class="page" id="p-bring">
     <div class="card">
       <div class="hd">상대 팀 프리뷰 6마리 <span class="sub">상대가 보여준 6마리를 입력하세요</span>
-        <div class="row right"><button class="btn" id="clearOpp">비우기</button><button class="btn primary" id="bringBtn">선출 추천</button></div>
+        <div class="row right"><button class="btn" id="clearOpp">비우기</button><button class="btn" id="bringBtn">빠른 선출 추천</button><button class="btn primary" id="bringSimBtn">대전 시뮬레이션 선출</button></div>
       </div>
       <div class="bd"><div class="pick6" id="oppPick"></div></div>
     </div>
     <div class="grid g2" style="margin-top:14px">
       <div class="card"><div class="hd">추천 선출 <span class="sub">앞쪽 테두리가 선봉</span></div><div id="bringRes"><div class="empty">상대 6마리를 넣고 ‘선출 추천’을 누르세요.</div></div></div>
+      <div class="card" style="grid-column:1/-1"><div class="hd">대전 시뮬레이션 선출 <span class="sub">내 선출 후보 × 상대 선출 후보를 끝까지 대전시킨 승률표와 균형해</span></div><div class="bd" id="bringSimRes"><div class="empty small">‘대전 시뮬레이션 선출’을 누르면 15~60초 걸립니다.</div></div></div>
       <div class="card"><div class="hd">1:1 상성표 <span class="sub">+ 유리 / − 불리 (주는 데미지·처치 − 받는 데미지·처치, 스피드)</span></div><div class="bd scroll" id="bringGrid"></div></div>
     </div>
   </section>
@@ -71,6 +103,7 @@
         <div class="row"><b>턴</b><button class="btn sm" id="turnDown">−</button><b id="turnNo">1</b><button class="btn sm" id="turnUp">+</button></div>
         <div class="gauge" style="flex:1; min-width:240px"><span class="muted small">현재 승률</span><div class="g"><i id="gaugeBar" style="width:50%"></i></div><b id="gaugeTxt">–</b></div>
         <span class="pill" id="adviceSrc">추천 대기</span>
+        <label class="chk small"><input type="checkbox" id="useSearch">수읽기 (몇 턴 앞을 직접 굴림)</label>
         <button class="btn" id="obsBtn">관측 데미지 입력</button>
         <button class="btn" id="nextTurn">턴 기록 → 다음 턴</button>
         <button class="btn good" id="winBtn">승리</button>

@@ -122,6 +122,7 @@ function showPage(p) {
   if (p === 'battle') renderBattle();
   if (p === 'bring') renderBring();
   if (p === 'calc') renderCalc();
+  if (p === 'build') renderBuild();
 }
 $$('#tabs button').forEach(b => b.addEventListener('click', () => showPage(b.dataset.p)));
 $$('#gtSeg button').forEach(b => b.addEventListener('click', () => {
@@ -284,7 +285,8 @@ $('#modalClose').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
 // ======================================================================== 선출
-function renderBring() {
+async function renderBring() {
+  await ensureNames({ species: S.oppPreview.filter(Boolean) });
   const el = $('#oppPick'); el.innerHTML = '';
   for (let i = 0; i < 6; i++) {
     const sid = S.oppPreview[i] || '';
@@ -469,7 +471,7 @@ const requestAdvice = debounce(async () => {
   if (!B) return;
   const nSlots = B.gameType === 'doubles' ? 2 : 1;
   const myActive = B.mine.filter(m => m.slot && !m.fainted).length;
-  const state = { ...B, forceSwitch: myActive < nSlots && B.mine.some(m => !m.slot && !m.fainted) };
+  const state = { ...B, forceSwitch: myActive < nSlots && B.mine.some(m => !m.slot && !m.fainted), useSearch: $('#useSearch').checked };
   $('#adviceSrc').textContent = '계산 중…';
   try {
     const r = await api('/api/advise', state);
@@ -478,6 +480,8 @@ const requestAdvice = debounce(async () => {
   } catch (e) { $('#adviceSrc').textContent = '오류: ' + e.message; }
 }, 250);
 $('#adviseBtn').addEventListener('click', () => requestAdvice());
+$('#useSearch').checked = store.get('useSearch', false);
+$('#useSearch').addEventListener('change', (e) => { store.set('useSearch', e.target.checked); requestAdvice(); });
 
 function renderAdvice() {
   const r = S.advice;
@@ -489,12 +493,15 @@ function renderAdvice() {
   const el = $('#advList'); el.innerHTML = '';
   if (!r.options.length) { el.append(h('div', { class: 'empty' }, '고를 수 있는 행동이 없습니다. 내 포켓몬을 내보내세요.')); }
   const hasWin = r.options.some(o => o.win != null);
+  const hasProb = r.options.some(o => o.prob != null);
   const maxScore = Math.max(...r.options.map(o => o.score), 0.01);
   r.options.slice(0, 12).forEach((o, i) => {
-    const val = hasWin ? o.win : Math.max(0, o.score / maxScore);
+    const val = hasWin ? o.win : hasProb ? o.prob : Math.max(0, o.score / maxScore);
+    const txt = hasWin ? Math.round(o.win * 100) + '%' : hasProb ? Math.round(o.prob * 100) + '%' : o.score.toFixed(2);
+    const sub = hasWin ? '예상 승률' : hasProb ? '추천 확률' : '점수';
     el.append(h('div', { class: 'opt' }, h('span', { class: 'rank' }, i + 1),
       h('div', {}, h('div', { class: 'lbl' }, o.label), o.why ? h('div', { class: 'why' }, o.why) : null, h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(val * 100)}%` }))),
-      h('span', { class: 'pct' }, hasWin ? Math.round(o.win * 100) + '%' : o.score.toFixed(2))));
+      h('span', { class: 'pct', title: sub }, txt, h('div', { class: 'small muted', style: 'font-weight:400;font-size:10px' }, sub))));
   });
   renderDetail();
 }
@@ -676,6 +683,124 @@ $('#selftestBtn').addEventListener('click', async () => {
   await api('/api/selftest', {}); $('#aiSelftest').innerHTML = '<div class="empty">셀프테스트 실행 중… (데미지 대조 수천 건)</div>';
   const poll = async () => { const r = await api('/api/selftest/status'); if (r.running) return setTimeout(poll, 800); renderSelftest(r.result); toast(r.result && r.result.ok ? '셀프테스트 통과' : '셀프테스트 실패 항목이 있습니다'); };
   setTimeout(poll, 800);
+});
+
+// ======================================================================== 작업 기다리기
+async function waitJob(jid, onTick) {
+  for (;;) {
+    const r = await api('/api/job/' + jid);
+    onTick && onTick(r.job);
+    if (!r.job.running) { if (r.job.error) throw new Error(r.job.error); return r.job.result; }
+    await new Promise(res => setTimeout(res, 1200));
+  }
+}
+async function simReady(el) {
+  const r = await api('/api/sim/status');
+  if (el) el.textContent = r.available ? '시뮬레이션 준비됨 (쇼다운 엔진)' : r.hint;
+  return r.available;
+}
+
+// ======================================================================== 파티 짜기
+let BOXS = { species: [], sets: {} };
+async function renderBuild() {
+  try { BOXS = await api('/api/box'); } catch (e) {}
+  await ensureNames({ species: BOXS.species });
+  const add = $('#boxAdd'); add.innerHTML = '';
+  add.append(autocomplete({ kind: 'species', placeholder: '+ 가진 포켓몬 추가', noMega: true, onPick: (it) => {
+    if (!BOXS.species.includes(it.id)) BOXS.species.push(it.id); saveBox(); renderBuild(); } }));
+  const list = $('#boxList'); list.innerHTML = '';
+  BOXS.species.forEach(sid => list.append(h('span', { class: 'chip mv', style: 'display:inline-flex;align-items:center;gap:4px' },
+    h('img', { src: '/sprite/' + sid, style: 'width:24px;height:24px' }), nm('species', sid),
+    h('span', { class: 'x', onclick: () => { BOXS.species = BOXS.species.filter(x => x !== sid); saveBox(); renderBuild(); } }, '×'))));
+  $('#boxCount').textContent = BOXS.species.length ? `${BOXS.species.length}마리` : '비어 있음';
+  simReady($('#simHint'));
+}
+const saveBox = () => api('/api/box', BOXS).catch(() => {});
+$('#boxClear').addEventListener('click', () => { if (!confirm('보관함을 비울까요?')) return; BOXS.species = []; saveBox(); renderBuild(); });
+$('#boxPaste').addEventListener('click', () => {
+  const ta = h('textarea', { placeholder: '포켓몬 이름을 줄바꿈이나 쉼표로 구분해 넣으세요 (한글·영어)\n예) 한카리아스, 리자몽, 팬텀\n또는 쇼다운 팀 텍스트를 그대로 붙여넣어도 됩니다' });
+  openModal('보관함에 여러 마리 넣기', ta, h('button', { class: 'btn primary', style: 'margin-top:10px', onclick: async () => {
+    const text = ta.value;
+    let ids = [];
+    if (text.includes('@') || text.includes('- ')) ids = (await api('/api/team/parse', { text })).team.map(t => t.species);
+    else for (const name of text.split(/[\n,]+/).map(x => x.trim()).filter(Boolean)) {
+      const r = await api('/api/search?' + new URLSearchParams({ kind: 'species', q: name, limit: 1 }));
+      if (r.results[0]) { ids.push(r.results[0].id); NAME.species[r.results[0].id] = r.results[0].ko; }
+    }
+    for (const i of ids) if (i && !BOXS.species.includes(i)) BOXS.species.push(i);
+    saveBox(); closeModal(); renderBuild(); toast(`${ids.length}마리를 넣었습니다`);
+  } }, '넣기'));
+});
+function teamCards(team) {
+  return h('div', { class: 'grid g3' }, ...team.map(s => h('div', { class: 'card', style: 'padding:10px' },
+    h('div', { class: 'row' }, h('img', { src: '/sprite/' + s.species, style: 'width:48px;height:48px' }), h('div', { class: 'col', style: 'gap:2px' },
+      h('b', {}, s.ko), h('span', { class: 'small muted' }, `${s.abilityKo} · ${s.itemKo || '도구 없음'}`))),
+    h('div', { class: 'small' }, `${s.natureKo} · ${Object.entries(s.sp || {}).map(([k, v]) => v + ' ' + STAT_KO[k]).join(' / ')}`),
+    h('div', { class: 'chips', style: 'margin-top:4px' }, ...s.movesKo.map(m => h('span', { class: 'chip mv' }, m))))));
+}
+function applyTeam(team) {
+  S.team = { id: '', name: 'AI 추천 파티', team: team.map(s => ({ species: s.species, ability: s.ability, item: s.item, nature: s.nature, sp: { ...s.sp }, moves: [...s.moves] })) };
+  team.forEach(s => { NAME.species[s.species] = s.ko; s.moves.forEach((m, i) => NAME.moves[m] = s.movesKo[i]); NAME.items[s.item] = s.itemKo; NAME.abilities[s.ability] = s.abilityKo; });
+  saveState(); renderTeam(); toast('팀 탭에 넣었습니다 — 저장을 눌러 보관하세요');
+}
+$('#buildBtn').addEventListener('click', async () => {
+  const res = $('#buildRes');
+  const locked = $('#buildLock').checked ? S.team.team.filter(s => s.species) : [];
+  try {
+    const { job } = await api('/api/team/build', { gameType: S.gt, box: BOXS.species, locked, steps: +$('#buildSteps').value || 20 });
+    res.innerHTML = '<div class="empty">파티를 평가하는 중…</div>';
+    const r = await waitJob(job, (j) => {
+      const st = j.step ? ` · 다듬기 ${j.step[0]}/${j.step[1]} · 지금 승률 ${Math.round(j.step[2] * 100)}%` : '';
+      $('#buildStatus').textContent = (j.progress.slice(-1)[0] || '') + st;
+      if (j.partial && !res.dataset.partial) { res.innerHTML = ''; res.append(h('div', { class: 'small muted' }, '출발 파티'), teamCards(j.partial)); res.dataset.partial = '1'; }
+    });
+    delete res.dataset.partial;
+    res.innerHTML = '';
+    res.append(h('div', { class: 'row', style: 'margin-bottom:10px' }, h('b', { style: 'font-size:18px' }, `메타 상대 예상 승률 ${Math.round(r.score * 100)}%`),
+      h('span', { class: 'small muted' }, `평가 ${r.evals}번 · 상대 파티 ${r.opponents.length}개`), h('button', { class: 'btn primary right', onclick: () => applyTeam(r.team) }, '이 파티를 팀 탭에 넣기')),
+      teamCards(r.team),
+      h('h4', { style: 'margin:14px 0 6px' }, '승률을 올린 변경'), h('ul', { class: 'small' }, ...(r.history.length > 1 ? r.history.slice(1).map(x => h('li', {}, `${x.change} → ${Math.round(x.score * 100)}%`)) : [h('li', {}, '출발 파티보다 나은 변경을 찾지 못함 (다듬기 횟수를 늘려 보세요)')])),
+      h('h4', { style: 'margin:14px 0 6px' }, '상대 파티별 승률'), h('table', { class: 't' }, ...r.opponents.map((o, i) => h('tr', {}, h('td', { class: 'small' }, o.join(' · ')), h('td', {}, Math.round(r.perOpp[i] * 100) + '%')))));
+  } catch (e) { res.innerHTML = ''; res.append(h('div', { class: 'empty' }, e.message)); }
+});
+$('#oneBtn').addEventListener('click', async () => {
+  const res = $('#buildRes');
+  const team = S.team.team.filter(s => s.species);
+  if (team.length >= 6) return toast('팀 탭의 파티가 이미 6마리입니다. 한 마리를 비우고 눌러 주세요.');
+  try {
+    const { job } = await api('/api/team/one', { gameType: S.gt, box: BOXS.species, team });
+    res.innerHTML = '<div class="empty">후보를 하나씩 넣어 대전시키는 중…</div>';
+    const r = await waitJob(job, (j) => { $('#buildStatus').textContent = j.progress.slice(-1)[0] || ''; });
+    res.innerHTML = '';
+    res.append(h('div', { class: 'small muted', style: 'margin-bottom:8px' }, `지금 팀(${team.length}마리)에 넣었을 때 메타 상대 승률`),
+      ...r.rows.map((x, i) => h('div', { class: 'combo' }, h('b', { class: 'muted' }, i + 1), h('img', { src: '/sprite/' + x.species, style: 'width:46px;height:46px' }),
+        h('div', { class: 'col', style: 'flex:1;gap:2px' }, h('b', {}, x.ko), h('span', { class: 'small muted' }, `${x.set.itemKo} · ${x.set.movesKo.join(' / ')}`)),
+        h('span', { class: 'pill' }, Math.round(x.score * 100) + '%' + (x.gain != null ? ` (${x.gain >= 0 ? '+' : ''}${Math.round(x.gain * 100)})` : '')),
+        h('button', { class: 'btn sm', onclick: () => { const slot = S.team.team.findIndex(s => !s.species); const t = x.set; S.team.team[slot >= 0 ? slot : S.team.team.length] = { species: t.species, ability: t.ability, item: t.item, nature: t.nature, sp: { ...t.sp }, moves: [...t.moves] }; NAME.species[t.species] = t.ko; t.moves.forEach((m, k) => NAME.moves[m] = t.movesKo[k]); NAME.items[t.item] = t.itemKo; saveState(); renderTeam(); toast(x.ko + ' 을(를) 팀에 넣었습니다'); } }, '팀에 넣기'))));
+  } catch (e) { res.innerHTML = ''; res.append(h('div', { class: 'empty' }, e.message)); }
+});
+
+// 선출 시뮬레이션
+$('#bringSimBtn').addEventListener('click', async () => {
+  const team = S.team.team.filter(s => s.species);
+  const opp = S.oppPreview.filter(Boolean);
+  if (team.length < 4 || !opp.length) return toast('내 팀과 상대 6마리를 먼저 넣으세요');
+  const el = $('#bringSimRes');
+  try {
+    const { job } = await api('/api/bring/sim', { team, oppPreview: opp, gameType: S.gt });
+    el.innerHTML = '<div class="empty">승률표를 채우는 중… (15~60초)</div>';
+    const r = await waitJob(job);
+    const lead = S.gt === 'doubles' ? 2 : 1;
+    const imgs = (o) => h('div', { class: 'imgs' }, ...o.split('').map((c, j) => h('img', { class: j < lead ? 'lead' : '', src: '/sprite/' + team[+c - 1].species })));
+    el.innerHTML = '';
+    el.append(h('div', { class: 'grid g2' },
+      h('div', { class: 'card', style: 'padding:12px' }, h('div', { class: 'small muted' }, '상대가 메타대로 낼 때 가장 좋은 선출'), h('div', { class: 'row' }, imgs(r.bestMeta.order), h('b', {}, r.bestMeta.names.join(' · ')), h('span', { class: 'pill right' }, Math.round(r.bestMeta.vsMeta * 100) + '%'))),
+      h('div', { class: 'card', style: 'padding:12px' }, h('div', { class: 'small muted' }, '상대가 뭘 내든 가장 안전한 선출 (최악의 경우가 가장 나은)'), h('div', { class: 'row' }, imgs(r.bestSafe.order), h('b', {}, r.bestSafe.names.join(' · ')), h('span', { class: 'pill right' }, '최악 ' + Math.round(r.bestSafe.worst * 100) + '%')))),
+      h('div', { class: 'small muted', style: 'margin:10px 0' }, `대전 ${r.games}판 · 균형 승률 ${Math.round(r.value * 100)}% · 상대가 낼 법한 선출: ${r.oppLikely.slice(0, 3).map(o => o.names.join('·') + ' ' + Math.round(o.prob * 100) + '%').join(' / ')}`),
+      h('table', { class: 't' }, h('tr', {}, ...['선출 (테두리 = 선봉)', '균형 비중', '메타 상대', '최악', '최악일 때 상대'].map(x => h('th', {}, x))),
+        ...r.rows.map(x => h('tr', {}, h('td', {}, h('div', { class: 'row' }, imgs(x.order), h('span', { class: 'small' }, x.names.join(' · ')))), h('td', {}, Math.round(x.nash * 100) + '%'),
+          h('td', {}, Math.round(x.vsMeta * 100) + '%'), h('td', {}, Math.round(x.worst * 100) + '%'), h('td', { class: 'small muted' }, x.worstVs.join(' · '))))));
+  } catch (e) { el.innerHTML = ''; el.append(h('div', { class: 'empty' }, e.message)); }
 });
 
 // ======================================================================== 설정

@@ -51,6 +51,7 @@ from engine import advisor, builder, model as M  # noqa: E402
 from engine.damage import Ctx, calc, ko_chance, percent_range  # noqa: E402
 from engine.mon import FieldState, Mon, SideState  # noqa: E402
 from engine.team import export_paste, parse_paste  # noqa: E402
+from engine.psbridge import find_ps_dir  # noqa: E402
 
 app = Flask(__name__, template_folder=str(HERE / "templates"), static_folder=str(HERE / "static"))
 app.config["JSON_AS_ASCII"] = False
@@ -517,6 +518,158 @@ def api_selftest():
 @app.route("/api/selftest/status")
 def api_selftest_status():
     return ok(**SELFTEST)
+
+
+# ======================================================================== 시뮬레이션 작업 (파티 짜기 · 선출 시뮬레이션)
+import shutil as _shutil  # noqa: E402
+import uuid as _uuid  # noqa: E402
+
+JOBS = {}
+BOX = USER / "box.json"
+
+
+def sim_available():
+    return bool(_shutil.which("node")) and find_ps_dir() is not None
+
+
+@app.route("/api/sim/status")
+def api_sim_status():
+    return ok(available=sim_available(), node=bool(_shutil.which("node")), ps=str(find_ps_dir() or ""),
+              hint="" if sim_available() else "시뮬레이션 기능은 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.")
+
+
+def start_job(kind, fn):
+    jid = _uuid.uuid4().hex[:10]
+    job = {"id": jid, "kind": kind, "running": True, "progress": [], "result": None, "error": None,
+           "started": time.time()}
+    JOBS[jid] = job
+
+    def log(msg):
+        job["progress"].append(str(msg))
+        del job["progress"][:-60]
+
+    def run():
+        try:
+            job["result"] = fn(log, job)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            job["error"] = f"{type(e).__name__}: {e}"
+        job["running"] = False
+    threading.Thread(target=run, daemon=True).start()
+    return jid
+
+
+@app.route("/api/job/<jid>")
+def api_job(jid):
+    j = JOBS.get(jid)
+    if not j:
+        return err("없는 작업")
+    return ok(job={k: v for k, v in j.items()})
+
+
+@app.route("/api/box", methods=["GET", "POST"])
+def api_box():
+    if request.method == "POST":
+        body = request.get_json(force=True) or {}
+        BOX.write_text(json.dumps({"species": body.get("species") or [], "sets": body.get("sets") or {}},
+                                  ensure_ascii=False, indent=1), encoding="utf-8")
+        return ok()
+    if BOX.is_file():
+        return ok(**json.loads(BOX.read_text(encoding="utf-8")))
+    return ok(species=[], sets={})
+
+
+def _teamopt(gt, box, log, seed=7, n_opp=10, games=2):
+    from engine.psbridge import Bridge
+    from engine.selfplay import pick_format
+    from engine.teamopt import TeamOptimizer
+    br = Bridge()
+    fmt = pick_format(br, gt)
+    opt = TeamOptimizer(dex(), br, fmt, gt, pool=box or None, n_opp=n_opp, games=games, k_orders=4, seed=seed, log=log)
+    return br, opt
+
+
+def _describe_team(team):
+    d = dex()
+    out = []
+    for s in team:
+        out.append({**s, "ko": d.species[s["species"]]["ko"],
+                    "itemKo": d.items.get(s.get("item") or "", {}).get("ko", ""),
+                    "abilityKo": d.abilities.get(s.get("ability") or "", {}).get("ko", ""),
+                    "natureKo": d.natures.get(s.get("nature") or "", {}).get("ko", ""),
+                    "movesKo": [d.moves.get(m, {}).get("ko", m) for m in s.get("moves") or []]})
+    return out
+
+
+@app.route("/api/team/build", methods=["POST"])
+def api_team_build():
+    if not sim_available():
+        return err("시뮬레이션 기능은 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.")
+    b = request.get_json(force=True) or {}
+    gt = b.get("gameType", "singles")
+    box = [dex().find("species", x) for x in (b.get("box") or []) if dex().find("species", x)]
+    locked = b.get("locked") or []
+    steps = int(b.get("steps", 20))
+
+    def fn(log, job):
+        br, opt = _teamopt(gt, box, log)
+        try:
+            log(f"메타 상대 파티 {len(opt.opponents)}개와 '선출 → 배틀' 로 평가합니다.")
+            start = opt.initial_team(fixed=locked)
+            job["partial"] = _describe_team(start)
+
+            def prog(step, total, score):
+                job["step"] = [step, total, round(score, 4)]
+            res = opt.optimize(start, steps=steps, locked=tuple(range(len(locked))), progress=prog)
+            return {"team": _describe_team(res["team"]), "score": res["score"], "perOpp": res["perOpp"],
+                    "history": res["history"], "evals": res["evals"],
+                    "opponents": [[dex().species[s["species"]]["ko"] for s in t] for t in opt.opponents]}
+        finally:
+            br.close()
+    return ok(job=start_job("build", fn))
+
+
+@app.route("/api/team/one", methods=["POST"])
+def api_team_one():
+    if not sim_available():
+        return err("시뮬레이션 기능은 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.")
+    b = request.get_json(force=True) or {}
+    gt = b.get("gameType", "singles")
+    box = [dex().find("species", x) for x in (b.get("box") or []) if dex().find("species", x)]
+    team = [s for s in (b.get("team") or []) if s.get("species")][:5]
+
+    def fn(log, job):
+        br, opt = _teamopt(gt, box, log)
+        try:
+            log(f"후보 {len(opt.pool)}마리를 하나씩 넣어 대전시킵니다.")
+            res = opt.recommend_one(team, top=6)
+            return {"rows": [{**r, "set": _describe_team([r["set"]])[0]} for r in res]}
+        finally:
+            br.close()
+    return ok(job=start_job("one", fn))
+
+
+@app.route("/api/bring/sim", methods=["POST"])
+def api_bring_sim():
+    if not sim_available():
+        return err("시뮬레이션 기능은 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.")
+    b = request.get_json(force=True) or {}
+    gt = b.get("gameType", "singles")
+
+    def fn(log, job):
+        from engine import bring as BR
+        from engine.psbridge import Bridge
+        from engine.selfplay import pick_format
+        br = Bridge()
+        try:
+            fmt = pick_format(br, gt)
+            log("내 선출 후보 × 상대 선출 후보를 끝까지 대전시켜 승률표를 채웁니다…")
+            return BR.recommend(dex(), br, fmt, b.get("team") or [], b.get("oppPreview") or [], gt,
+                                k_mine=10, k_opp=10, worlds=6, games=6, seed=int(time.time()) % 9999, budget_ms=60000)
+        finally:
+            br.close()
+    return ok(job=start_job("bring", fn))
 
 
 # ======================================================================== 업데이트

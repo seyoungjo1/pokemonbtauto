@@ -243,23 +243,47 @@ def advise(dex: Dex, st: dict) -> dict:
                 b.forced = res["best"]
     _apply_forced_beliefs(calc_pol)
 
-    model = M.load(gt)
+    from . import nets
+    net = nets.load_net(gt)
     q = v = None
-    source = "선생님 정책 (학습 모델 없음)"
-    if model and opts:
+    probs = None
+    source = "선생님 AI (학습된 신경망 없음)"
+    if net and opts:
         try:
-            q, v = model.evaluate(x, [o["choice"] for o in opts])
-            source = f"학습 모델 ({model.info.get('games')}판 학습)"
+            s_vec = F.state_vector(x, net.st)
+            O = [F.option_vector(x, o["choice"], net.op) for o in opts]
+            probs = net.policy(s_vec, O, T=1.0)
+            v = net.value(s_vec)
+            source = f"신경망 ({(net.info or {}).get('games', '?')}판 학습)"
         except Exception as e:
-            source = f"선생님 정책 (모델 오류: {e})"
+            source = f"선생님 AI (신경망 오류: {e})"
+    # 수읽기: PC 에 Node.js·쇼다운이 있으면 행동별 예상 승률을 직접 굴려서 계산
+    search_vals = {}
+    if st.get("useSearch") and opts and not req.get("teamPreview"):
+        try:
+            from .psbridge import find_ps_dir
+            import shutil
+            if find_ps_dir() and shutil.which("node"):
+                from .search import SearchPolicy
+                sp = SearchPolicy(dex, seed=int(st.get("turn") or 1), worlds=6, rollouts=3, depth=3, net=net)
+                sp.start("p1", team, dex)
+                sp.choose(snap, req, opts)
+                search_vals = (sp.last or {}).get("values") or {}
+                if search_vals:
+                    source += " + 수읽기"
+        except Exception as e:
+            source += f" (수읽기 오류: {e})"
     heur = calc_pol._turn_scores(snap, req, opts) if opts and not req.get("teamPreview") else [0] * len(opts)
     ranked = []
     for i, o in enumerate(opts):
         ranked.append({"choice": o["choice"], "label": describe_choice(dex, o["choice"], req, snap, team),
-                       "win": float(q[i]) if q is not None else None, "score": round(float(heur[i]), 4),
-                       "why": _why(x, o["choice"], req, snap)})
-    if q is not None:
-        ranked.sort(key=lambda r: -(r["win"] or 0))
+                       "win": float(search_vals[i]) if i in search_vals else None,
+                       "prob": float(probs[i]) if probs is not None else None,
+                       "score": round(float(heur[i]), 4), "why": _why(x, o["choice"], req, snap)})
+    if search_vals:
+        ranked.sort(key=lambda r: -(r["win"] if r["win"] is not None else -1))
+    elif probs is not None:
+        ranked.sort(key=lambda r: -r["prob"])
     else:
         ranked.sort(key=lambda r: -r["score"])
     return {

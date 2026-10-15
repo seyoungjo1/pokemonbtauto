@@ -2,12 +2,12 @@
  "version": "0.1.0",
  "files": {
   "README.md": {
-   "sha256": "8e7a475463a22f4180674cf51ae566e37896186269e1a95b7c6ee1a526b26015",
-   "size": 1617
+   "sha256": "fc530cf3fe45047871a29fa246ed5f5ceca9161ab6f1548befbfedf252fb3823",
+   "size": 3988
   },
   "app.py": {
-   "sha256": "fb9e06a8d074df636f0c2e22bda7df4d58b50c9ece269fe5f5a178600179fcf2",
-   "size": 20841
+   "sha256": "4490d06ea41bbecf5de2b2deac2895ff5c52950a69470040c39e9992d86786f6",
+   "size": 26925
   },
   "data/champions/abilities.json": {
    "sha256": "1bfd0444e5f9b6878667f3be1a9a39e99d3012a07c352cd7e37da7c99d8f88d7",
@@ -66,8 +66,8 @@
    "size": 0
   },
   "engine/advisor.py": {
-   "sha256": "081aea9dfade1330d238acacdd16fda7472985b4f5b28f84e19bdae68392e763",
-   "size": 20914
+   "sha256": "5e9e83e627cdc6ab4017fcf669c06fab02fff0c8e65ac6f5e8309a6fa19bb67a",
+   "size": 22093
   },
   "engine/analysis.py": {
    "sha256": "fa70aa48564c030db8df6b5bdbafafa3b4b7bbf5f0b7cb2b4cac2f87b3ca392c",
@@ -194,16 +194,16 @@
    "size": 665
   },
   "static/app.css": {
-   "sha256": "bd54bd6683c1977c5c5622282feb3178f6bbd43050eabc177e7111523017457e",
-   "size": 14701
+   "sha256": "154d92113aab0a7838c294d581b1669f261a88b80d3d10ea15f398fefeb380d6",
+   "size": 14761
   },
   "static/app.js": {
-   "sha256": "9a0fdd197021d5002e83799a783f4952a5681bf0b3ac089ee22b0b8efb68533f",
-   "size": 56361
+   "sha256": "a9f20c287a818553984d2067cfa0a9fac7a0caea4cd18939250ddca50cef4be8",
+   "size": 67331
   },
   "templates/index.html": {
-   "sha256": "241b6cfc0b639244e8de764bb334638720302bc952152a2d07d6d44ae7044050",
-   "size": 9309
+   "sha256": "c946087714277cb2f5f8fe554982748ac59880851e3b678d246d6b6a6bbc21d9",
+   "size": 12121
   },
   "tests/parity_doubles.json": {
    "sha256": "908c01fe0b42dc3094df29d0aeb17485d3f72e61a63b12db0060bf4124b55481",
