@@ -136,6 +136,35 @@ class OppBelief:
     def likely_role(self) -> str:
         return max(self.cands, key=lambda c: c.weight).role if self.cands else ""
 
+    # 등장(switch-in) 즉시 메시지를 내는 특성 — 등장했는데 메시지가 없었으면 제외할 수 있다 (부정 증거)
+    ANNOUNCED_ON_ENTRY = {"intimidate", "drizzle", "drought", "sandstream", "snowwarning", "pressure", "moldbreaker",
+                          "unnerve", "frisk", "download", "screencleaner", "electricsurge", "psychicsurge", "grassysurge",
+                          "mistysurge", "orichalcumpulse", "hadronengine", "supremeoverlord", "slowstart", "airlock",
+                          "cloudnine", "teravolt", "turboblaze", "imposter", "anticipation", "forewarn", "zerotohero",
+                          "protosynthesis", "quarkdrive", "embodyaspectteal", "vesselofruin", "swordofruin", "tabletsofruin", "beadsofruin"}
+
+    def ability_probs(self, seen_entering: bool = False) -> dict:
+        """특성별 확률. 드러났으면 1. 등장했는데 발동 메시지가 없었으면 등장 시 발동하는 특성은 뺀다."""
+        if getattr(self, "ability", None):
+            return {self.ability: 1.0}
+        sp = self.dex.species.get(self.species, {})
+        legal = {to_id(a) for a in sp.get("abilities", {}).values()}
+        probs = {}
+        if self.usage and self.usage.get("abilities"):
+            probs = {a: p for a, p in self.usage["abilities"].items() if not legal or a in legal}
+        if not probs:
+            for c in self.cands:
+                for a in c.abilities:
+                    probs[a] = probs.get(a, 0) + c.weight
+        if not probs:
+            probs = {a: 1.0 for a in legal} or {"": 1.0}
+        if seen_entering:
+            kept = {a: p for a, p in probs.items() if a not in self.ANNOUNCED_ON_ENTRY}
+            if kept:
+                probs = kept
+        tot = sum(probs.values()) or 1.0
+        return {a: p / tot for a, p in sorted(probs.items(), key=lambda kv: -kv[1])}
+
     def likely_ability(self) -> str:
         if getattr(self, "ability", None):
             return self.ability
@@ -283,5 +312,14 @@ def sample_set(dex: Dex, b: OppBelief, rng, revealed_item=None, ability=None, me
             if r <= 0:
                 spread, nature = x["sp"], x["nature"] or nature
                 break
-    return {"species": mega_species or b.species, "ability": ability or b.likely_ability(), "item": item,
+    if not ability:   # 특성도 확률대로 (까칠한피부/모래숨기 같은 갈림을 세계마다 다르게)
+        ap = b.ability_probs(seen_entering=getattr(b, "seen_entering", False))
+        r = rng.random() * sum(ap.values())
+        ability = next(iter(ap))
+        for a_, w_ in ap.items():
+            r -= w_
+            if r <= 0:
+                ability = a_
+                break
+    return {"species": mega_species or b.species, "ability": ability, "item": item,
             "nature": nature, "sp": dict(spread), "moves": moves}

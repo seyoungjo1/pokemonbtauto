@@ -54,6 +54,90 @@ class StateTokenizer:
                 self._set_cache[k] = None
         return self._set_cache[k]
 
+    def soft_opp_tokens(self, mv: dict):
+        """상대 포켓몬의 '부드러운 세트' 토큰: 특성·도구·안 드러난 기술 칸을 후보 확률로 가중 평균 (가장 흔한 것 하나로 못 박지 않음).
+        드러난 것은 확률 1. 등장했는데 발동 메시지가 없던 특성은 제외(부정 증거)."""
+        from .tokens import ability_token, item_token, move_token, _mons
+        from .montoken import move_multipliers
+        dex = self.dex
+        sid = mv.get("species") or ""
+        base = dex.base_of_mega(sid) if sid in dex.species else sid
+        key = ("soft", base, tuple(mv.get("moves") or []), mv.get("item"), mv.get("ability"), bool(mv.get("revealed")), bool(mv.get("mega")))
+        if key in self._belief_cache:
+            return self._belief_cache[key]
+        b = OppBelief(dex, base, self.gt)
+        b.observe([m for m in (mv.get("moves") or []) if m in dex.moves], mv.get("item"), mv.get("ability"))
+        ap = b.ability_probs(seen_entering=bool(mv.get("revealed")))
+        ip = {i: p for i, p in b.item_probs().items() if i in dex.items} if mv.get("item") is None else {mv.get("item") or "": 1.0}
+        if mv.get("mega") and sid in dex.species and dex.species[sid].get("isMega"):
+            ip = {dex.find("items", dex.species[sid].get("requiredItem") or "") or "": 1.0}
+        mp = b.move_probs()
+        base_set = self.guess_opp_set(mv)
+        rep = base_set
+        # 대표 세트(가장 그럴듯한)로 Mon 을 만들고, 토큰은 후보별로 만들어 가중 평균
+        def top(d, n):
+            items = sorted(d.items(), key=lambda kv: -kv[1])[:n]
+            tot = sum(p for _, p in items) or 1.0
+            return [(k, p / tot) for k, p in items]
+        try:
+            m, atk, is_mega = _mons(dex, rep)
+        except Exception:
+            self._belief_cache[key] = self.set_tok(rep)
+            return self._belief_cache[key]
+        # 특성 혼합
+        ab_vec, ab_id = None, 0
+        for a_, p_ in top(ap, 3):
+            s_ = dict(rep, ability=a_)
+            try:
+                m_, atk_, _ = _mons(dex, s_)
+                mults = {mid: (move_multipliers(dex, atk_, mid) if dex.moves[mid]["category"] != "Status" and dex.moves[mid].get("basePower") else (1.0, 1.0))
+                         for mid in atk_.moves if mid in dex.moves}
+                vec = ability_token(dex, self.vocab, s_, atk_, mults) * p_
+            except Exception:
+                continue
+            ab_vec = vec if ab_vec is None else ab_vec + vec
+            if not ab_id:
+                ab_id = self.vocab.ability.get(a_, 0)
+        # 도구 혼합
+        it_vec, it_id = None, 0
+        mults0 = {mid: (move_multipliers(dex, atk, mid) if dex.moves[mid]["category"] != "Status" and dex.moves[mid].get("basePower") else (1.0, 1.0))
+                  for mid in atk.moves if mid in dex.moves}
+        for i_, p_ in (top(ip, 5) or [("", 1.0)]):
+            vec = item_token(dex, self.vocab, dict(rep, item=i_), mults0) * p_
+            it_vec = vec if it_vec is None else it_vec + vec
+            if not it_id:
+                it_id = self.vocab.item.get(i_, 0)
+        # 기술: 드러난 것은 그대로, 남은 칸은 후보 상위 8개의 가중 평균을 칸 수만큼
+        revealed = [x for x in (mv.get("moves") or []) if x in dex.moves][:4]
+        moves = []
+        for mid in revealed:
+            moves.append((move_token(dex, self.vocab, mid, atk, mults0.get(mid, (1.0, 1.0))), self.vocab.move.get(mid, 0)))
+        free = 4 - len(moves)
+        if free > 0:
+            cand = [(m_, p_) for m_, p_ in top({m_: p_ for m_, p_ in mp.items() if m_ not in revealed and m_ in dex.moves}, 8)]
+            if cand:
+                mix = None
+                for m_, p_ in cand:
+                    try:
+                        ra, ri = move_multipliers(dex, atk, m_) if dex.moves[m_]["category"] != "Status" and dex.moves[m_].get("basePower") else (1.0, 1.0)
+                        vec = move_token(dex, self.vocab, m_, atk, (ra, ri)) * p_
+                    except Exception:
+                        continue
+                    mix = vec if mix is None else mix + vec
+                if mix is not None:
+                    for _ in range(free):
+                        moves.append((mix, self.vocab.move.get(cand[0][0], 0)))
+        base_tok = self.set_tok(rep)
+        if base_tok is None:
+            self._belief_cache[key] = None
+            return None
+        out = {"mon": base_tok["mon"], "ability": (ab_vec if ab_vec is not None else base_tok["ability"][0], ab_id or base_tok["ability"][1]),
+               "item": (it_vec if it_vec is not None else base_tok["item"][0], it_id or base_tok["item"][1]),
+               "moves": moves or base_tok["moves"], "extra": base_tok["extra"],
+               "abilityProbs": dict(top(ap, 3)), "itemProbs": dict(top(ip, 5))}
+        self._belief_cache[key] = out
+        return out
+
     def guess_opp_set(self, mv: dict) -> dict:
         """상대 포켓몬의 추정 세트: 드러난 기술·도구·특성 + 메타 사용률 (믿음망 전까지의 자리 메우기)."""
         dex = self.dex
@@ -216,8 +300,7 @@ class StateTokenizer:
             if sid not in dex.species:
                 continue
             mv = opp_views.get(sid) or opp_views_base.get(dex.base_of_mega(sid))
-            gs = self.guess_opp_set(mv or {"species": sid})
-            sets[6 + pos] = self.set_tok(gs)
+            sets[6 + pos] = self.soft_opp_tokens(mv or {"species": sid})
             dyn[6 + pos] = self.dyn(mv, False, None, pos, out=mv is None)
             mask[6 + pos] = sets[6 + pos] is not None
         if actor < 0:
