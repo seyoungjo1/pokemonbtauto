@@ -456,3 +456,48 @@ def selfcheck_surgery(seed=0) -> dict:
                     abs(old.value(s_old) - new.value(s_new)))
     return {"ok": worst < 1e-4, "maxDiff": worst,
             "added": new.info["surgery"]["stateAdded"] + new.info["surgery"]["optionAdded"]}
+
+
+# ======================================================================== 변수 묶음 제거 실험
+def drop_group(data, key, st=None, op=None):
+    """데이터에서 변수 묶음 하나의 칸을 뺀 사본 (상태 묶음이면 상태에서, 선택지 묶음이면 두 자리 모두에서)."""
+    if st is None or op is None:
+        st, op = F.active_groups({"groups": {}})
+    s_lay, _ = _layout([(g.key, g.size) for g in st])
+    o_lay, oh = _layout([(g.key, g.size) for g in op])
+    out = dict(data)
+    if key in s_lay:
+        o, sz = s_lay[key]
+        keep = np.r_[0:o, o + sz:len(data["S"][0])]
+        out["S"] = [x[keep] for x in data["S"]]
+    elif key in o_lay:
+        o, sz = o_lay[key]
+        full = 2 * oh
+        drop = set(range(o, o + sz)) | set(range(oh + o, oh + o + sz))
+        keep = np.array([i for i in range(full) if i not in drop])
+        out["O"] = [x[:, keep] for x in data["O"]]
+    return out
+
+
+def ablation(data, keys, epochs=8, seeds=(0, 1), log=print):
+    """묶음마다 빼고 처음부터 학습 → 검증 손실(정책 + 가치) 증가량. +면 그 묶음이 쓸모 있다."""
+    tr, va = split(data, val=0.15, seed=99)
+
+    def score(d, seed):
+        net = PolicyValueNet(len(d["S"][0]), d["O"][0].shape[1], seed=seed)
+        net.set_norm([d["S"][i] for i in tr[:20000]], [d["O"][i] for i in tr[:20000]])
+        net.fit_numpy(d, epochs=epochs, tr_idx=tr.copy(), val_idx=va, log=None, seed=seed)
+        m = net.evaluate(d, va)
+        return m["policyCE"] + m["valueLoss"], m
+    base = [score(data, s)[0] for s in seeds]
+    b = float(np.mean(base))
+    if log:
+        log(f"  전체 변수: 검증 손실 {b:.4f} (시드 {len(seeds)}개)")
+    res = {}
+    for k in keys:
+        d = drop_group(data, k)
+        w = float(np.mean([score(d, s)[0] for s in seeds]))
+        res[k] = {"with": round(b, 5), "without": round(w, 5), "delta": round(w - b, 5)}
+        if log:
+            log(f"  {k:12s} 빼면 {w - b:+.4f}")
+    return b, res

@@ -179,6 +179,114 @@
    "desc": "선출한 포켓몬들의 평균·선봉·최저 상성, 메가 포함, 스피드",
    "status": "candidate",
    "tests": []
+  },
+  "s_types18": {
+   "ko": "타입 구성",
+   "kind": "state",
+   "size": 36,
+   "added": "2026-10-15",
+   "desc": "내·상대 첫 활성 포켓몬의 타입 (18타입 원-핫)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_bench2": {
+   "ko": "대기 포켓몬 상성",
+   "kind": "state",
+   "size": 14,
+   "added": "2026-10-15",
+   "desc": "내 대기 포켓몬(최대 2) vs 상대 활성: 주는·받는 데미지와 처치 확률, 스피드 / 상대의 드러난 대기 vs 내 활성",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_threat": {
+   "ko": "위협 상세",
+   "kind": "state",
+   "size": 6,
+   "added": "2026-10-15",
+   "desc": "상대 활성이 내 각 포켓몬을 / 내 활성이 상대 각 포켓몬을 쓰러뜨릴 확률 (높은 순)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_priority": {
+   "ko": "선공기",
+   "kind": "state",
+   "size": 3,
+   "added": "2026-10-15",
+   "desc": "내 선공기로 상대 활성 마무리 확률, 상대 선공기로 내 활성이 쓰러질 확률, 상대가 선공기를 가졌을 확률",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_hazard": {
+   "ko": "설치기 피해",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "교체해 들어올 때 스텔스록·압정으로 받는 HP 비율 (내 대기 최대·평균, 상대 대기 최대·평균)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_volatile": {
+   "ko": "휘발 상태",
+   "kind": "state",
+   "size": 14,
+   "added": "2026-10-15",
+   "desc": "내·상대 첫 활성의 대타출동·도발·앵콜·혼란·씨뿌리기, 직전 방어, 구애 고정",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_items": {
+   "ko": "도구 상태",
+   "kind": "state",
+   "size": 5,
+   "added": "2026-10-15",
+   "desc": "상대 도구 미공개, 상대 기합의띠 가능성, 내·상대 도구 소모, 상대 구애스카프 가능성",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_tempo": {
+   "ko": "턴 흐름",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "내·상대 활성이 나와 있던 턴 수, 쓰러진 수",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_teacher": {
+   "ko": "선생님 판단",
+   "kind": "option",
+   "size": 1,
+   "added": "2026-10-15",
+   "desc": "데미지 엔진 기반 선생님 정책의 행동 점수 (알파고의 지도학습 정책 역할)",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_secondary": {
+   "ko": "기술 부가효과",
+   "kind": "option",
+   "size": 8,
+   "added": "2026-10-15",
+   "desc": "추가효과 확률, 상태이상, 내 능력치 하락, 상대 능력치 하락, 흡수, 반동, 풀죽음, 회복",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_switch2": {
+   "ko": "교체 위험",
+   "kind": "option",
+   "size": 5,
+   "added": "2026-10-15",
+   "desc": "교체해 들어갈 포켓몬: 설치기 피해, 상대에게 쓰러질 확률, 상대보다 빠른가, HP, 상대 드러난 기술을 반감 이하로 받는 비율",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_target": {
+   "ko": "대상 정보",
+   "kind": "option",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "공격 대상의 HP, 대상이 내 포켓몬을 쓰러뜨릴 위협, 대상이 나보다 빠른가, 확정 처치인가",
+   "status": "candidate",
+   "tests": []
   }
  },
  "suggestions": [],

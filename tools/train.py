@@ -14,6 +14,7 @@
 import argparse
 import glob
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -201,33 +202,31 @@ def cmd_train(a, dex=None, data=None):
 
 # ======================================================================== 변수 제거 실험
 def cmd_ablation(a, dex=None, data=None):
+    """변수 묶음 제거 실험 (정책·가치 신경망 기준): 묶음을 빼고 학습했을 때 검증 손실이 얼마나 느는지."""
+    from engine import nets
     dex = dex or Dex()
     types = ["singles", "doubles"] if a.type == "both" else [a.type]
     led = F.sync_ledger()
     for gt in types:
-        d = data or load_data(dex, gt)
-        seeds = list(range(a.seeds))
-        base = []
-        for s in seeds:
-            _, _, m = M.train_q_v(d, seed=s, epochs=a.epochs)
-            base.append(m["q"]["logloss"])
-        b = float(np.mean(base))
-        print(f"[{gt}] 전체 변수 검증 손실 {b:.4f} (시드 {len(seeds)}개)")
-        for g in F.REGISTRY + F.PART_GROUPS:
-            ls = []
-            for s in seeds:
-                _, _, m = M.train_q_v(d, exclude=(g.key,), seed=s, epochs=a.epochs)
-                ls.append(m["q"]["logloss"])
-            w = float(np.mean(ls))
-            delta = w - b   # +: 빼면 나빠짐 = 쓸모 있음
-            e = led["groups"][g.key]
-            test = {"when": now(), "gameType": gt, "games": d[6]["games"], "decisions": int(len(d[2])),
-                    "loss_with": round(b, 5), "loss_without": round(w, 5), "delta": round(delta, 5)}
-            e["tests"].append(test)
+        files = sorted(game_files(gt), key=os.path.getmtime)[::-1]
+        d = data or nets.build_listwise(SP.iter_games(files), dex, gt, max_games=a.max_games, log=print,
+                                        teachers=("search", "human"))
+        if len(d["S"]) < 2000:
+            d = nets.build_listwise(SP.iter_games(files), dex, gt, max_games=a.max_games, log=print)
+        n_games = d["meta"]["games"]
+        print(f"[{gt}] 결정 {len(d['S'])}개 ({n_games}판)")
+        keys = [g.key for g in F.REGISTRY + F.PART_GROUPS]
+        b, res = nets.ablation(d, keys, epochs=a.epochs, seeds=tuple(range(a.seeds)))
+        for k, r in res.items():
+            e = led["groups"][k]
+            e["tests"].append({"when": now(), "gameType": gt, "games": n_games, "decisions": int(len(d["S"])),
+                               "loss_with": r["with"], "loss_without": r["without"], "delta": r["delta"],
+                               "model": "policyvalue"})
             e["tests"] = e["tests"][-20:]
             e["status"] = _verdict(e)
-            print(f"  {g.key:11s} {g.ko:10s} 빼면 {delta:+.4f} → {e['status']}")
-        led["history"].append({"when": now(), "gameType": gt, "baseline": round(b, 5), "games": d[6]["games"]})
+            print(f"  {k:12s} {e['ko']:10s} 빼면 {r['delta']:+.4f} → {e['status']}")
+        led["history"].append({"when": now(), "gameType": gt, "baseline": round(b, 5), "games": n_games,
+                               "model": "policyvalue"})
     F.save_ledger(led)
     write_features_md(led)
     return led
@@ -252,7 +251,8 @@ STATUS_KO = {"adopted": "채택", "candidate": "후보 (효과 확인 중)", "re
 def write_features_md(led):
     lines = ["# 변수 장부", "",
              "AI 가 판단에 쓰는 변수 묶음과, 셀프테스트(제거 실험)로 확인한 효과를 기록합니다.",
-             "**빼면 손실 증가**가 클수록 그 변수가 승패 예측에 도움이 된다는 뜻입니다 (검증 로그손실, 판 단위 분할).",
+             "**빼면 손실 증가**가 클수록 그 변수가 도움이 된다는 뜻입니다 — 그 묶음을 빼고 정책·가치 신경망을 처음부터 학습했을 때",
+             "검증 손실(수읽기 AI 의 선택 분포를 따라 하는 정책 손실 + 승패 예측 손실, 판 단위 분할)이 얼마나 느는지.",
              "", "자동 생성: `python tools/train.py ablation` — 직접 고치지 마세요.", "",
              "| 묶음 | 이름 | 종류 | 칸 | 추가일 | 상태 | 최근 실험 (빼면 손실 증가) | 실험 데이터 |",
              "|---|---|---|---|---|---|---|---|"]
