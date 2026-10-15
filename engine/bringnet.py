@@ -62,7 +62,9 @@ def roles(dex: Dex, s: dict) -> dict:
         ab = to_id(dex.species[mega]["abilities"].get("0", "")) or ab
         sp = dex.species[mega]
     bs = sp.get("baseStats", {})
-    sets_w = {WEATHER_SET[x] for x in mv | {ab} if x in WEATHER_SET}
+    from .montoken import weather_profile
+    wp = weather_profile(dex, s)
+    sets_w = set(wp["sets"])
     uses_w = {WEATHER_USE[ab]} if ab in WEATHER_USE else set()
     uses_w |= {WEATHER_MOVE[m] for m in mv if m in WEATHER_MOVE and WEATHER_MOVE[m] != "any"}
     # 날씨로 강해지는 타입: 비 = 물 기술 1.5배, 쾌청 = 불 기술 1.5배, 모래 = 바위 특방 1.5배, 설경 = 얼음 방어 1.5배
@@ -78,7 +80,7 @@ def roles(dex: Dex, s: dict) -> dict:
         uses_w.add("snow")
     attacker = max(bs.get("atk", 0), bs.get("spa", 0)) >= 100
     return {
-        "w_set": sets_w, "w_use": uses_w, "tr": "trickroom" in mv, "slow": bs.get("spe", 100) <= 55 and attacker,
+        "w_set": sets_w, "w_use": uses_w, "w_gain": wp["gain"], "tr": "trickroom" in mv, "slow": bs.get("spe", 100) <= 55 and attacker,
         "tw": "tailwind" in mv, "attacker": attacker, "screens": bool(mv & {"reflect", "lightscreen", "auroraveil"}),
         "setup": bool(mv & SETUP), "intim": ab == "intimidate", "fakeout": "fakeout" in mv,
         "redirect": bool(mv & {"followme", "ragepowder"}), "pivot": bool(mv & {"uturn", "voltswitch", "flipturn", "partingshot", "teleport", "chillyreception"}),
@@ -100,7 +102,8 @@ def synergy(R: list, A: list, lead: int, R_opp: list, B: list) -> list:
     ra = [R[i] for i in A]
     rb = [R_opp[j] for j in B]
     w_set = set().union(*[r["w_set"] for r in ra])
-    w_use = sum(1 for r in ra if r["w_use"] & w_set)
+    # 날씨 이득의 양: 고른 포켓몬 중 설치자가 있는 날씨에서, 팀원 기술(자속·위력·실능)이 얻는 이득 합 (손해 차감)
+    w_use = max([sum(r["w_gain"].get(w, 0.0) for r in ra) for w in w_set] or [0.0])
     opp_w = set().union(*[r["w_set"] for r in rb])
     tr = any(r["tr"] for r in ra)
     return [

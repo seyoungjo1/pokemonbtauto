@@ -221,7 +221,16 @@ def check_features(dex):
         from engine import features
     except ImportError:
         return {"ok": True, "skipped": "features 모듈 없음"}
-    return features.selfcheck(dex)
+    r = features.selfcheck(dex)
+    from engine import montoken
+    t = montoken.selfcheck(dex)
+    # 날씨 시너지: 잔비 + 일렉트로빔은 이득, 일렉트로빔이 없으면 0
+    ar = {"species": "archaludon", "ability": "stamina", "item": "", "nature": "modest", "sp": {"spa": 32},
+          "moves": ["electroshot", "flashcannon", "dracometeor", "bodypress"]}
+    g1 = montoken.weather_profile(dex, ar)["gain"]["rain"]
+    g2 = montoken.weather_profile(dex, {**ar, "moves": ["flashcannon", "dracometeor", "bodypress", "thunderbolt"]})["gain"]["rain"]
+    ok = r.get("ok") and t["ok"] and g1 > 0.5 and g2 == 0
+    return {**r, "ok": bool(ok), "summary": f"{r.get('summary', '')} · 포켓몬 {t['summary']} · 날씨 이득(잔비+일렉트로빔 {g1:.2f})"}
 
 
 def check_sim():
