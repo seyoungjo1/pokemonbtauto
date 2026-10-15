@@ -46,7 +46,8 @@ WEATHER_USE = {"chlorophyll": "sun", "solarpower": "sun", "flowergift": "sun", "
                "swiftswim": "rain", "raindish": "rain", "dryskin": "rain", "sandrush": "sand", "sandforce": "sand",
                "sandveil": "sand", "slushrush": "snow", "icebody": "snow", "snowcloak": "snow"}
 WEATHER_MOVE = {"solarbeam": "sun", "solarblade": "sun", "weatherball": "any", "hurricane": "rain", "thunder": "rain",
-                "blizzard": "snow", "auroraveil": "snow"}
+                "blizzard": "snow", "auroraveil": "snow", "electroshot": "rain", "hydrosteam": "sun",
+                "morningsun": "sun", "synthesis": "sun", "shoreup": "sand"}
 SETUP = {"swordsdance", "nastyplot", "dragondance", "calmmind", "quiverdance", "bulkup", "shellsmash", "coil",
          "agility", "irondefense", "curse", "tidyup", "victorydance", "shiftgear", "bellydrum"}
 
