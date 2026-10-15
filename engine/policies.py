@@ -66,7 +66,7 @@ class HeuristicPolicy:
     def _belief(self, species):
         b = self.beliefs.get(species)
         if b is None:
-            b = self.beliefs[species] = OppBelief(self.dex, species)
+            b = self.beliefs[species] = OppBelief(self.dex, species, getattr(self, "game_type", "singles"))
         return b
 
     def my_mon(self, mv: dict) -> Mon | None:
@@ -297,3 +297,87 @@ class HeuristicPolicy:
         if mid in ("tailwind", "trickroom"):
             return 0.3
         return 0.05
+
+
+# ======================================================================== 학습하지 않은 기본 AI들 (대전 상대 풀)
+class ShowdownRandomPolicy:
+    """쇼다운 내장 RandomPlayerAI 와 같은 방식 — 기술만 무작위, 교체는 강제될 때만, 메가진화 안 함."""
+    name = "showdown_random"
+
+    def __init__(self, seed=None):
+        self.rng = random.Random(seed)
+
+    def start(self, side, team_sets, dex):
+        pass
+
+    def choose(self, view, req, options):
+        if req.get("teamPreview") or req.get("forceSwitch"):
+            return self.rng.randrange(len(options)), None
+        moves_only = [i for i, o in enumerate(options)
+                      if not any(p.startswith("switch") for p in o["parts"]) and not o["choice"].endswith("mega")
+                      and " mega," not in o["choice"]]
+        pool = moves_only or list(range(len(options)))
+        return self.rng.choice(pool), None
+
+
+class MaxDamagePolicy:
+    """매 턴 가장 센 기술(기본 위력 × 자속 × 상성)만 쓴다 — 연구에서 흔한 기준선."""
+    name = "max_damage"
+
+    def __init__(self, dex: Dex, seed=None):
+        self.dex = dex
+        self.rng = random.Random(seed)
+
+    def start(self, side, team_sets, dex):
+        pass
+
+    def choose(self, view, req, options):
+        if req.get("teamPreview") or req.get("forceSwitch"):
+            return self.rng.randrange(len(options)), None
+        snap = view.snapshot()
+        opp = "p2" if snap["me"] == "p1" else "p1"
+        opps = sorted([m for m in snap["mons"][opp] if m["slot"] and not m["fainted"]], key=lambda m: m["slot"])
+        mine = [p for p in req["side"]["pokemon"] if p.get("active")]
+        best, best_i = -1.0, 0
+        for i, o in enumerate(options):
+            v = 0.0
+            for slot, part in enumerate(o["parts"]):
+                toks = part.split()
+                if toks[0] != "move" or slot >= len(req.get("active", [])):
+                    continue
+                mv = self.dex.moves.get(to_id(req["active"][slot]["moves"][int(toks[1]) - 1].get("id", "")))
+                if not mv or mv["category"] == "Status":
+                    continue
+                my_types = self.dex.species.get(to_id(mine[slot]["details"].split(",")[0]) if slot < len(mine) else "", {}).get("types", [])
+                tgt = int(toks[2]) if len(toks) > 2 and toks[2].lstrip("-").isdigit() else 1
+                if tgt < 0:
+                    continue
+                o_types = self.dex.species.get(opps[tgt - 1]["species"], {}).get("types", []) if 0 < tgt <= len(opps) else []
+                mult = 1.0
+                for t in o_types:
+                    if self.dex.immune(mv["type"], t):
+                        mult = 0.0
+                        break
+                    mult *= 2 ** self.dex.effectiveness(mv["type"], t)
+                v += (mv.get("basePower") or 0) * (1.5 if mv["type"] in my_types else 1.0) * mult
+            if v > best or (v == best and self.rng.random() < 0.5):
+                best, best_i = v, i
+        return best_i, None
+
+
+BASELINES = {
+    "showdown_random": "쇼다운 기본 AI (무작위)",
+    "random": "완전 무작위",
+    "max_damage": "최대 데미지 AI",
+    "heuristic": "선생님 AI (데미지 계산)",
+}
+
+
+def make_baseline(name: str, dex: Dex, seed=None):
+    if name == "showdown_random":
+        return ShowdownRandomPolicy(seed)
+    if name == "random":
+        return RandomPolicy(seed)
+    if name == "max_damage":
+        return MaxDamagePolicy(dex, seed)
+    return HeuristicPolicy(dex, seed=seed)

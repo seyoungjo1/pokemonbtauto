@@ -1,0 +1,186 @@
+{
+ "groups": {
+  "s_hp": {
+   "ko": "남은 HP",
+   "kind": "state",
+   "size": 10,
+   "added": "2026-10-15",
+   "desc": "내·상대 활성 HP, 살아있는 수, 팀 HP 합",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_status": {
+   "ko": "상태이상",
+   "kind": "state",
+   "size": 18,
+   "added": "2026-10-15",
+   "desc": "활성 포켓몬의 화상·마비·독·잠듦, 팀 상태이상 수",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_boosts": {
+   "ko": "랭크 변화",
+   "kind": "state",
+   "size": 20,
+   "added": "2026-10-15",
+   "desc": "활성 포켓몬의 공격·방어·특공·특방·스피드 랭크",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_field": {
+   "ko": "날씨·필드",
+   "kind": "state",
+   "size": 12,
+   "added": "2026-10-15",
+   "desc": "날씨·필드 종류와 경과 턴, 트릭룸, 중력",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_side": {
+   "ko": "진영 효과",
+   "kind": "state",
+   "size": 16,
+   "added": "2026-10-15",
+   "desc": "벽·순풍·스텔스록·압정 등 (내/상대)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_speed": {
+   "ko": "스피드 비교",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "활성끼리 누가 먼저 움직이는가 (트릭룸·순풍·스카프·마비 반영)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_matchup": {
+   "ko": "데미지 상성",
+   "kind": "state",
+   "size": 8,
+   "added": "2026-10-15",
+   "desc": "데미지 엔진으로 계산한 내→상대, 상대→나 최대 기대 데미지와 처치 확률",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_bench": {
+   "ko": "교체 후보",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "대기 중인 내 포켓몬의 최고 교체 상성, 상대 미공개 수",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_types": {
+   "ko": "타입 상성",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "활성 포켓몬 자속 타입끼리의 상성 (log2)",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_mega": {
+   "ko": "메가진화",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "메가진화 사용 여부와 지금 가능한지",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_info": {
+   "ko": "정보량",
+   "kind": "state",
+   "size": 3,
+   "added": "2026-10-15",
+   "desc": "상대에 대해 드러난 기술·도구·특성 비율",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_turn": {
+   "ko": "턴·결정 종류",
+   "kind": "state",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "턴 수, 선출/강제교체/일반 턴",
+   "status": "candidate",
+   "tests": []
+  },
+  "s_stats": {
+   "ko": "종족값",
+   "kind": "state",
+   "size": 12,
+   "added": "2026-10-15",
+   "desc": "첫 번째 활성 포켓몬(나·상대)의 종족값",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_kind": {
+   "ko": "행동 종류",
+   "kind": "option",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "기술/교체/메가진화/패스",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_move": {
+   "ko": "기술 기본 정보",
+   "kind": "option",
+   "size": 10,
+   "added": "2026-10-15",
+   "desc": "위력·명중·우선도·분류·범위·자속·접촉·반동",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_effect": {
+   "ko": "기술 효과 계산",
+   "kind": "option",
+   "size": 5,
+   "added": "2026-10-15",
+   "desc": "데미지 엔진: 대상 상성·기대 데미지·처치 확률·아군 공격·무효",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_status": {
+   "ko": "변화기 종류",
+   "kind": "option",
+   "size": 7,
+   "added": "2026-10-15",
+   "desc": "능력 올리기·회복·방어·상태이상·설치·벽·스피드 조절",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_switch": {
+   "ko": "교체 상성",
+   "kind": "option",
+   "size": 4,
+   "added": "2026-10-15",
+   "desc": "들어올 포켓몬이 받을/줄 데미지, HP, 스피드",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_risk": {
+   "ko": "행동 위험",
+   "kind": "option",
+   "size": 3,
+   "added": "2026-10-15",
+   "desc": "행동하는 포켓몬이 먼저 맞고 쓰러질 위험",
+   "status": "candidate",
+   "tests": []
+  },
+  "o_preview": {
+   "ko": "선출 조합",
+   "kind": "option",
+   "size": 6,
+   "added": "2026-10-15",
+   "desc": "선출한 포켓몬들의 평균·선봉·최저 상성, 메가 포함, 스피드",
+   "status": "candidate",
+   "tests": []
+  }
+ },
+ "suggestions": [],
+ "history": []
+}

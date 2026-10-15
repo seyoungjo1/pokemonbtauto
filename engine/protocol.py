@@ -139,6 +139,11 @@ class BattleView:
         self.request = req
         if not req or "side" not in req:
             return
+        if not req.get("teamPreview"):
+            # 선출이 끝나면 데려오지 않은 포켓몬은 내 시점에서 뺀다
+            names = {split_ident(p["ident"])[2] for p in req["side"]["pokemon"]}
+            for n in [n for n in self.mons[self.me] if n not in names]:
+                del self.mons[self.me][n]
         for i, p in enumerate(req["side"]["pokemon"]):
             side, _, name = split_ident(p["ident"])
             m = self.mon(self.me, name)

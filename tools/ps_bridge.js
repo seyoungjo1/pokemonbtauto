@@ -24,6 +24,7 @@ const psDir = path.resolve(process.argv[2] || process.env.PS_DIR || 'build/pokem
 const { Battle, Dex, Teams } = require(path.join(psDir, 'dist', 'sim'));
 
 const battles = new Map();
+const searcher = require('./ps_search.js')(Battle);
 
 function splitLog(lines) {
 	const out = { p1: [], p2: [], omni: [] };
@@ -115,6 +116,12 @@ function handle(msg) {
 	case 'end':
 		battles.delete(msg.id);
 		return { id: msg.id, ended: true };
+	case 'search': {
+		const t0 = Date.now();
+		const r = searcher.search(msg);
+		r.ms = Date.now() - t0;
+		return r;
+	}
 	case 'pack':
 		return { packed: Teams.pack(msg.team) };
 	default:

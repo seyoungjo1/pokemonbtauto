@@ -137,7 +137,7 @@ def run(n_games: int, game_type: str = "singles", out_dir: Path | None = None, s
     out_dir = Path(out_dir or GAMES_DIR) / (dex.meta.get("builtAt", "data").replace(":", "")[:15])
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"games_{game_type}_{seed}_{int(time.time())}.jsonl.gz"
-    tg = TeamGen(dex, seed=seed)
+    tg = TeamGen(dex, seed=seed, game_type=game_type)
     wins = {"p1": 0, "p2": 0, None: 0}
     t0 = time.time()
     with Bridge(ps_dir) as br, gzip.open(out, "wt", encoding="utf-8") as fo:

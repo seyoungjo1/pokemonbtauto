@@ -32,14 +32,24 @@ RESIST_BERRY = {
 
 
 class TeamGen:
-    def __init__(self, dex: Dex, seed=None):
+    """meta 비율만큼은 실제 사용률 통계(같이 쓰는 포켓몬·세트)로, 나머지는 세트 목록으로 팀을 만든다."""
+
+    def __init__(self, dex: Dex, seed=None, game_type="singles", meta=0.7):
         self.dex = dex
         self.rng = random.Random(seed)
         self.pool = [s for s in dex.sets if s in dex.species]
+        self.game_type = game_type
+        self.meta = meta
+        self.usage = ((dex.usage.get(game_type) or {}).get("pokemon") or {})
+        self.usage = {k: v for k, v in self.usage.items() if k in dex.species and dex.learnsets.get(k)}
 
     # ------------------------------------------------------------
     def team(self, size: int = 6, explore: float = 0.1) -> list:
         """6마리 팀 (dict 목록). explore 비율만큼은 세트 밖 기술로 탐험."""
+        if self.usage and self.rng.random() < self.meta:
+            t = self.meta_team(size)
+            if len(t) == size:
+                return t
         rng = self.rng
         team, bases, items = [], set(), set()
         megas = 0
@@ -62,6 +72,70 @@ class TeamGen:
             megas += 1 if sp.get("isMega") else 0
             team.append(m)
         return team
+
+    # ------------------------------------------------------------ 실제 메타처럼
+    def meta_team(self, size=6) -> list:
+        rng, dex, U = self.rng, self.dex, self.usage
+        team, bases, items, megas = [], set(), set(), 0
+        weights = {k: v["usage"] ** 0.8 for k, v in U.items()}
+        tries = 0
+        while len(team) < size and tries < 300:
+            tries += 1
+            w = dict(weights)
+            for t in team:   # 같이 쓰는 포켓몬 가중
+                for mate, v in (U[t["species"]].get("teammates") or {}).items():
+                    if mate in w:
+                        w[mate] *= 1 + max(0.0, v) * 4
+            ks = list(w)
+            sid = rng.choices(ks, weights=[w[k] for k in ks])[0]
+            base = dex.species[sid]["baseSpecies"]
+            if base in bases:
+                continue
+            m = self.meta_set(sid, items, allow_mega=megas < 1)
+            if not m:
+                continue
+            if m.get("megaTarget"):
+                megas += 1
+            bases.add(base)
+            if m["item"]:
+                items.add(m["item"])
+            team.append(m)
+        return team
+
+    def meta_set(self, sid, used_items=(), allow_mega=True) -> dict | None:
+        rng, dex = self.rng, self.dex
+        u = self.usage[sid]
+        mv = dict(u.get("moves") or {})
+        learn = set(dex.learnsets.get(sid) or [])
+        mv = {m: p for m, p in mv.items() if m in dex.moves and (not learn or m in learn)}
+        moves = []
+        while len(moves) < 4 and mv:
+            ks = list(mv)
+            m = rng.choices(ks, weights=[mv[k] for k in ks])[0]
+            moves.append(m)
+            mv.pop(m)
+        if not moves:
+            return None
+        items = {i: p for i, p in (u.get("items") or {}).items() if i in dex.items and i not in used_items}
+        item = ""
+        if items:
+            ks = list(items)
+            item = rng.choices(ks, weights=[items[k] for k in ks])[0]
+            if dex.items[item].get("megaStone") and not allow_mega:
+                item = ""
+        abil = u.get("abilities") or {}
+        ability = rng.choices(list(abil), weights=list(abil.values()))[0] if abil else \
+            to_id(dex.species[sid]["abilities"].get("0", ""))
+        sps = u.get("spreads") or []
+        if sps:
+            x = rng.choices(sps, weights=[s["p"] for s in sps])[0]
+            spread, nature = dict(x["sp"]), x["nature"] or "serious"
+        else:
+            nature, spread = "serious", {"hp": 32, "atk": 17, "spa": 17}
+        mega_target = dex.mega_for(sid, item) or ""
+        return {"species": sid, "ability": ability, "item": item, "nature": nature, "sp": spread, "moves": moves,
+                "gender": rng.choice(["M", "F"]) if not dex.species[sid].get("gender") else "", "role": "meta",
+                "megaTarget": mega_target}
 
     def make_set(self, sid: str, used_items=(), explore=False) -> dict | None:
         rng, dex = self.rng, self.dex
@@ -173,6 +247,8 @@ def to_showdown_set(dex: Dex, m: dict) -> dict:
     sp = dex.species[m["species"]]
     it = dex.items.get(m.get("item") or "")
     ab = dex.abilities.get(m.get("ability") or "")
+    if sp.get("isMega"):   # 메가진화 후 모습으로 넣을 때는 메가의 특성
+        ab = dex.abilities.get(to_id(sp["abilities"].get("0", ""))) or ab
     return {
         "name": sp["name"], "species": sp["name"], "item": it["name"] if it else "",
         "ability": ab["name"] if ab else "", "moves": [dex.moves[x]["name"] for x in m["moves"] if x in dex.moves],

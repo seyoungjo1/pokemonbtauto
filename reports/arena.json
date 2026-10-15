@@ -1,0 +1,18 @@
+[
+ {
+  "me": "search",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 25,
+  "played": 40,
+  "winrate": 0.625,
+  "avgTurns": 20.2,
+  "seconds": 321,
+  "when": "2026-10-15T06:10:30+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ }
+]

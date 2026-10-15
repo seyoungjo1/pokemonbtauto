@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>챔피언스 배틀 AI</title>
+<link rel="stylesheet" href="/static/app.css?v={{ version }}">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="ball"></span><div>챔피언스 배틀 AI<br><small id="dataVer">데이터 확인 중…</small></div></div>
+  <nav class="tabs" id="tabs">
+    <button data-p="team">팀</button>
+    <button data-p="bring">선출</button>
+    <button data-p="battle" class="on">대전</button>
+    <button data-p="calc">계산기</button>
+    <button data-p="ai">AI·학습</button>
+    <button data-p="settings">설정</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="seg" id="gtSeg">
+    <button data-gt="singles" class="on">싱글 6→3</button>
+    <button data-gt="doubles">더블 6→4</button>
+  </div>
+  <span class="pill" id="teamPill">팀 없음</span>
+</header>
+
+<main>
+  <!-- ================= 팀 ================= -->
+  <section class="page" id="p-team">
+    <div class="grid" style="grid-template-columns: 260px 1fr">
+      <div class="card">
+        <div class="hd">저장한 팀 <button class="btn sm right" id="newTeam">+ 새 팀</button></div>
+        <div class="teamlist" id="teamList"></div>
+      </div>
+      <div class="col" style="gap:14px">
+        <div class="card">
+          <div class="hd">
+            <input type="text" id="teamName" placeholder="팀 이름" style="width:220px">
+            <span class="sub" id="teamCheck"></span>
+            <div class="row right">
+              <button class="btn" id="importBtn">텍스트 가져오기</button>
+              <button class="btn" id="exportBtn">텍스트 내보내기</button>
+              <button class="btn primary" id="saveTeam">저장</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid g-team" id="slots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 선출 ================= -->
+  <section class="page" id="p-bring">
+    <div class="card">
+      <div class="hd">상대 팀 프리뷰 6마리 <span class="sub">상대가 보여준 6마리를 입력하세요</span>
+        <div class="row right"><button class="btn" id="clearOpp">비우기</button><button class="btn primary" id="bringBtn">선출 추천</button></div>
+      </div>
+      <div class="bd"><div class="pick6" id="oppPick"></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="hd">추천 선출 <span class="sub">앞쪽 테두리가 선봉</span></div><div id="bringRes"><div class="empty">상대 6마리를 넣고 ‘선출 추천’을 누르세요.</div></div></div>
+      <div class="card"><div class="hd">1:1 상성표 <span class="sub">+ 유리 / − 불리 (주는 데미지·처치 − 받는 데미지·처치, 스피드)</span></div><div class="bd scroll" id="bringGrid"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= 대전 ================= -->
+  <section class="page on" id="p-battle">
+    <div class="card" style="margin-bottom:14px">
+      <div class="bd row" style="gap:14px">
+        <div class="row"><b>턴</b><button class="btn sm" id="turnDown">−</button><b id="turnNo">1</b><button class="btn sm" id="turnUp">+</button></div>
+        <div class="gauge" style="flex:1; min-width:240px"><span class="muted small">현재 승률</span><div class="g"><i id="gaugeBar" style="width:50%"></i></div><b id="gaugeTxt">–</b></div>
+        <span class="pill" id="adviceSrc">추천 대기</span>
+        <button class="btn" id="obsBtn">관측 데미지 입력</button>
+        <button class="btn" id="nextTurn">턴 기록 → 다음 턴</button>
+        <button class="btn good" id="winBtn">승리</button>
+        <button class="btn bad" id="loseBtn">패배</button>
+        <button class="btn ghost" id="newBattle">새 대전</button>
+      </div>
+    </div>
+    <div class="battle">
+      <div class="side mine"><h3>내 포켓몬</h3><div id="myActive"></div><div class="bench" id="myBench"></div></div>
+      <div class="side opp"><h3>상대 포켓몬</h3><div id="oppActive"></div><div class="bench" id="oppBench"></div>
+        <div class="card" style="margin-top:12px">
+          <div class="hd">필드</div>
+          <div class="bd col" style="gap:10px">
+            <div class="field-grid">
+              <label class="col small muted">날씨<select id="fWeather"></select></label>
+              <label class="col small muted">필드<select id="fTerrain"></select></label>
+            </div>
+            <div class="row"><label class="chk"><input type="checkbox" id="fTR">트릭룸</label><label class="chk"><input type="checkbox" id="fGrav">중력</label></div>
+            <div class="small muted">내 진영</div><div class="chips" id="sideMe"></div>
+            <div class="small muted">상대 진영</div><div class="chips" id="sideOpp"></div>
+          </div>
+        </div>
+      </div>
+      <div class="advice-col col" style="gap:14px">
+        <div class="card advice">
+          <div class="hd">추천 행동 <span class="sub" id="advCount"></span><button class="btn sm right" id="adviseBtn">다시 계산</button></div>
+          <div id="advList"><div class="empty">팀을 고르고 선출을 정하면 추천이 나옵니다.</div></div>
+        </div>
+        <div class="card">
+          <div class="tabs2" id="detailTabs">
+            <button data-d="dmg" class="on">내 공격</button><button data-d="threat">상대 위협</button>
+            <button data-d="speed">행동 순서</button><button data-d="opp">상대 세트 추정</button>
+          </div>
+          <div class="scroll" id="detail"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 계산기 ================= -->
+  <section class="page" id="p-calc">
+    <div class="grid g2">
+      <div class="card"><div class="hd">공격</div><div class="bd" id="calcA"></div></div>
+      <div class="card"><div class="hd">방어</div><div class="bd" id="calcD"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="hd">필드 <div class="row right" id="calcField"></div><button class="btn primary" id="calcBtn">계산</button></div>
+      <div id="calcRes"><div class="empty">포켓몬을 고르고 계산을 누르세요.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= AI·학습 ================= -->
+  <section class="page" id="p-ai">
+    <div class="stat-tiles" id="aiTiles"></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="hd">상대별 승률 (리그 평가) <span class="sub">학습하지 않은 기본 AI들과 붙인 결과</span></div><div class="bd" id="aiLeague"></div></div>
+      <div class="card"><div class="hd">셀프테스트 <button class="btn sm primary right" id="selftestBtn">지금 실행</button></div><div class="bd" id="aiSelftest"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="hd">변수 장부 <span class="sub">제거 실험으로 확인한 각 변수 묶음의 효과 · 다음에 넣을 후보</span></div><div class="bd scroll" id="aiLedger" style="max-height:600px"></div></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="hd">학습 기록</div><div class="bd scroll" id="aiHistory"></div></div>
+      <div class="card"><div class="hd">내 대전 분석 <span class="sub">예측 승률이 실제 결과와 맞았는지</span></div><div class="bd" id="aiReport"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= 설정 ================= -->
+  <section class="page" id="p-settings">
+    <div class="grid g2">
+      <div class="card"><div class="hd">업데이트</div><div class="bd col" id="updBox">
+        <div class="row"><button class="btn" id="updCheck">업데이트 확인</button><button class="btn primary" id="updApply" disabled>업데이트 받기</button></div>
+        <div class="small muted" id="updMsg">프로그램 · 챔피언스 데이터 · 학습 모델을 한 번에 최신으로 받습니다.</div>
+      </div></div>
+      <div class="card"><div class="hd">규칙(데이터) 선택</div><div class="bd col" id="modBox"></div></div>
+      <div class="card"><div class="hd">포켓몬 그림</div><div class="bd col">
+        <div class="small muted">처음 보이는 포켓몬은 그때그때 받아 저장합니다. 미리 전부 받아 둘 수도 있습니다.</div>
+        <div class="row"><button class="btn" id="spriteAll">그림 전부 받기</button><span class="small muted" id="spriteMsg"></span></div>
+      </div></div>
+      <div class="card"><div class="hd">화면</div><div class="bd row">
+        <div class="seg" id="themeSeg"><button data-th="auto" class="on">시스템</button><button data-th="light">밝게</button><button data-th="dark">어둡게</button></div>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="modal"><div class="card modal"><div class="hd"><span id="modalTitle"></span><button class="btn sm right" id="modalClose">닫기</button></div><div class="bd" id="modalBody"></div></div></div>
+<div class="toast" id="toast"></div>
+<script src="/static/app.js?v={{ version }}"></script>
+</body>
+</html>

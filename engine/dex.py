@@ -30,6 +30,11 @@ class Dex:
         self.sets = load("sets")
         self.formats = load("formats")
         self.meta = load("meta")
+        # 메타 통계 (tools/fetch_meta.py) — 없으면 비어 있음
+        opt = lambda k: json.loads((self.dir / f"{k}.json").read_text(encoding="utf-8")) \
+            if (self.dir / f"{k}.json").is_file() else {}
+        self.usage = opt("usage")
+        self.expert = opt("expert_sets")
         self.types_ko = self.meta.get("typesKo", {})
         # 한글·영어 이름 → id 찾기표
         self._index = {}
@@ -89,6 +94,15 @@ class Dex:
             return None
         target = it["megaStone"].get(sp["name"])
         return to_id(target) if target else None
+
+    def usage_of(self, species_id: str, game_type: str = "singles") -> dict | None:
+        """메타 사용률 (메가는 원래 종으로)."""
+        tbl = ((self.usage.get(game_type) or {}).get("pokemon") or {})
+        if species_id in tbl:
+            return tbl[species_id]
+        sp = self.species.get(species_id) or {}
+        base = to_id(sp.get("changesFrom") or sp.get("baseSpecies") or "")
+        return tbl.get(base)
 
     def can_learn(self, species_id: str, move_id: str) -> bool:
         return move_id in set(self.learnsets.get(species_id, []))

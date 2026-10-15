@@ -1,0 +1,87 @@
+[
+ {
+  "when": "2026-10-15T05:40:27+00:00",
+  "type": "train",
+  "gameType": "singles",
+  "metrics": {
+   "q": {
+    "logloss": 0.60551,
+    "baseline": 0.69261,
+    "acc": 0.7007,
+    "brier": 0.20399,
+    "n": 1460
+   },
+   "v": {
+    "logloss": 0.61503,
+    "baseline": 0.69261,
+    "acc": 0.6678,
+    "brier": 0.2075,
+    "n": 1460
+   }
+  },
+  "arena": {
+   "wins": 17,
+   "played": 40,
+   "winrate": 0.425
+  },
+  "kept": true,
+  "decisions": 6723,
+  "games": 300
+ },
+ {
+  "when": "2026-10-15T05:54:29+00:00",
+  "type": "train",
+  "gameType": "singles",
+  "metrics": {
+   "q": {
+    "logloss": 0.542,
+    "baseline": 0.69232,
+    "acc": 0.724,
+    "brier": 0.18305,
+    "n": 9030
+   },
+   "v": {
+    "logloss": 0.55043,
+    "baseline": 0.69232,
+    "acc": 0.7076,
+    "brier": 0.18712,
+    "n": 9030
+   }
+  },
+  "arena": {
+   "wins": 20,
+   "played": 60,
+   "winrate": 0.3333333333333333,
+   "ko": "선생님 AI (데미지 계산)"
+  },
+  "league": {
+   "heuristic": {
+    "wins": 20,
+    "played": 60,
+    "winrate": 0.3333333333333333,
+    "ko": "선생님 AI (데미지 계산)"
+   },
+   "max_damage": {
+    "wins": 10,
+    "played": 30,
+    "winrate": 0.3333333333333333,
+    "ko": "최대 데미지 AI"
+   },
+   "showdown_random": {
+    "wins": 8,
+    "played": 20,
+    "winrate": 0.4,
+    "ko": "쇼다운 기본 AI (무작위)"
+   },
+   "current": {
+    "wins": 34,
+    "played": 60,
+    "winrate": 0.5666666666666667,
+    "ko": "지금 쓰는 모델"
+   }
+  },
+  "kept": true,
+  "decisions": 45362,
+  "games": 2000
+ }
+]
