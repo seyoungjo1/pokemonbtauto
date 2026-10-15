@@ -181,6 +181,8 @@ def api_search():
         sp = d.species.get(d.find("species", request.args["species"]) or "", {})
         within = [to_id(a) for a in sp.get("abilities", {}).values()]
     res = d.search(kind, q, limit=int(request.args.get("limit", 30)), within=within)
+    if kind == "species":   # 대전 중에만 나오는 모습(캐스퐁 날씨 폼·킬가르도 블레이드 등)은 고를 수 없다
+        res = [r for r in res if not (r.get("battleOnly") and not r.get("isMega"))]
     if kind == "species" and request.args.get("noMega"):
         res = [r for r in res if not r.get("isMega")]
     out = []

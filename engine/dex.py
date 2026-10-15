@@ -85,6 +85,18 @@ class Dex:
     def immune(self, move_type: str, def_type: str) -> bool:
         return self.typechart.get(def_type, {}).get("damageTaken", {}).get(move_type, 0) == 3
 
+    def season_species(self) -> list:
+        """이번 시즌(데이터의 규칙)에 엔트리로 고를 수 있는 모든 종 — 메가·대전 중 모습(캐스퐁 날씨 폼 등) 제외.
+        메타 통계 유무와 상관없다 (통계 없는 종도 고를 수 있어야 한다)."""
+        out = []
+        for sid, sp in self.species.items():
+            if sp.get("isMega") or sp.get("battleOnly"):
+                continue
+            if not (self.learnsets.get(sid) or self.learnsets.get(to_id(sp.get("changesFrom") or sp.get("baseSpecies") or ""))):
+                continue
+            out.append(sid)
+        return out
+
     def base_of_mega(self, species_id: str) -> str:
         """메가 모습이면 메가진화 전 종, 아니면 그대로."""
         sp = self.species.get(species_id) or {}

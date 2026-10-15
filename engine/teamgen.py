@@ -37,7 +37,8 @@ class TeamGen:
     def __init__(self, dex: Dex, seed=None, game_type="singles", meta=0.7, focus=None):
         self.dex = dex
         self.rng = random.Random(seed)
-        self.pool = [s for s in dex.sets if s in dex.species]
+        # 무작위 팀 후보: 이번 시즌에 고를 수 있는 모든 종 (+ 랜덤배틀 세트의 메가 모습)
+        self.pool = list(dict.fromkeys(dex.season_species() + [s for s in dex.sets if s in dex.species and dex.species[s].get("isMega")]))
         self.game_type = game_type
         self.meta = meta
         self.usage = ((dex.usage.get(game_type) or {}).get("pokemon") or {})

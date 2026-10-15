@@ -97,8 +97,8 @@ class TeamOptimizer:
         self.rng = random.Random(seed)
         self.seed = seed
         self.sets = SetPool(dex, game_type, seed)
-        self.pool = [dex.find("species", s) for s in (pool or [])] if pool else \
-            [s for s in ((dex.usage.get(game_type) or {}).get("pokemon") or {}) if s in dex.species]
+        # 보관함이 비어 있으면 이번 시즌에 고를 수 있는 모든 종 (메타 통계가 없는 종도)
+        self.pool = [dex.find("species", s) for s in (pool or [])] if pool else dex.season_species()
         self.pool = [s for s in self.pool if s and not dex.species[s].get("isMega")]
         self.games, self.k = games, k_orders
         self.pick, self.lead = (4, 2) if game_type == "doubles" else (3, 1)

@@ -32,6 +32,7 @@ for (const s of dex.species.all()) {
 		abilities: s.abilities, weightkg: s.weightkg, baseSpecies: s.baseSpecies,
 		forme: s.forme || '', isMega: !!s.isMega, requiredItem: s.requiredItem || '',
 		changesFrom: s.changesFrom || '', spriteid: s.spriteid, tier: s.tier,
+		battleOnly: s.battleOnly ? [].concat(s.battleOnly).join(',') : '',
 		nfe: !!s.nfe, gender: s.gender || '', otherFormes: s.otherFormes || [],
 	};
 }
