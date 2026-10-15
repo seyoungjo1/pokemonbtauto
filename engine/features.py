@@ -23,6 +23,7 @@ from .mon import Mon
 from .policies import (HAZARDS, PROTECT, RECOVERY, SCREENS, SETUP_BOOST_MOVES, STATUS_INFLICT,
                        HeuristicPolicy)
 from .protocol import split_ident
+from .teamgen import normalize_set
 
 ROOT = Path(__file__).resolve().parent.parent
 LEDGER = ROOT / "features" / "ledger.json"
@@ -68,7 +69,7 @@ class FCtx:
         if calc is None:
             calc = HeuristicPolicy(dex)
         self.c = calc
-        self.c.sets = {dex.species[s["species"]]["name"]: s for s in my_sets if s["species"] in dex.species}
+        self.c.sets = {dex.ident_name(s["species"]): normalize_set(dex, s) for s in my_sets if s["species"] in dex.species}
         self.field = calc.field_of(view)
         self.pick = view.get("pickSize") or (4 if self.doubles else 3)
         self._mine = {}

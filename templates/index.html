@@ -14,6 +14,7 @@
     <button data-p="team">팀</button>
     <button data-p="bring">선출</button>
     <button data-p="battle" class="on">대전</button>
+    <button data-p="play">AI와 대전</button>
     <button data-p="calc">계산기</button>
     <button data-p="ai">AI·학습</button>
     <button data-p="settings">설정</button>
@@ -141,6 +142,22 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ================= AI와 대전 ================= -->
+  <section class="page" id="p-play">
+    <div class="card" style="margin-bottom:14px">
+      <div class="bd row" style="gap:12px; flex-wrap:wrap">
+        <b>AI와 대전</b>
+        <label class="row small">상대 AI <select id="playAi"></select></label>
+        <div class="seg" id="playTeamSeg"><button data-t="team" class="on">내 팀(팀 탭)</button><button data-t="meta">메타 팀 무작위</button></div>
+        <button class="btn primary" id="playStart">대전 시작</button>
+        <button class="btn ghost" id="playForfeit">기권</button>
+        <span class="pill" id="playStatus">대기</span>
+        <span class="small muted right">상대 팀은 메타에서 자주 나오는 팀입니다 · 끝난 대전은 학습 데이터에 더해집니다</span>
+      </div>
+    </div>
+    <div id="playBody"><div class="card"><div class="empty">상대 AI 를 고르고 ‘대전 시작’을 누르세요. 수읽기 AI 가 가장 강하고, 한 수에 몇 초 걸립니다.</div></div></div>
   </section>
 
   <!-- ================= 계산기 ================= -->

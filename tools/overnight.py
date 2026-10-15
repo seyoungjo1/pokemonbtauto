@@ -89,7 +89,8 @@ def worker(args):
     def fac(g):
         a, b = me(seed + g), opp(seed + 5000 + g)
         return {"p1": a, "p2": b} if g % 2 == 0 else {"p1": b, "p2": a}
-    out = SP.run(n, gt, seed=seed, policy_factory=fac, log=lambda *x: None, explore=0.15)
+    out = SP.run(n, gt, seed=seed, policy_factory=fac, log=lambda *x: None, explore=0.15,
+                 focus=settings.get("focus"))
     return str(out)
 
 
@@ -107,26 +108,57 @@ def generate(gt, total, workers, settings, seed, log):
 
 
 # ======================================================================== 학습
-def train(gt, log, max_games, epochs):
+def mixed_games(gt, max_games, replay_share, log=print):
+    """학습 판 = 사람 기보(최대 replay_share 비율) + 최근 자기대전.
+    기보를 계속 섞어 두면(리허설) 자기대전만 하다가 사람 메타에서 멀어지는 것을 막는다."""
+    from engine import selfplay as SP
+    from tools.fetch_replays import replay_files
+    files = sorted(glob.glob(str(GAMES / "**" / f"games_{gt}_*.jsonl.gz"), recursive=True),
+                   key=os.path.getmtime)[::-1]
+    rfiles = replay_files(gt) if replay_share > 0 else []
+    n_rep = int(max_games * replay_share) if rfiles else 0
+    if rfiles:
+        log(f"  사람 기보 최대 {n_rep}판 + 자기대전 섞기")
+
+    def gen():
+        k = 0
+        for g in SP.iter_games(rfiles):
+            if k >= n_rep:
+                break
+            if g.get("gameType") == gt:
+                k += 1
+                yield g
+        yield from SP.iter_games(files)
+    return gen()
+
+
+def train(gt, log, max_games, epochs, replay_share=0.3, warm=True):
+    """warm: 지금 최고 신경망에서 이어서 학습 (변수 묶음이 바뀌었으면 신경망 수술 후) — 처음부터 다시 하지 않는다."""
     import numpy as np
     from engine import nets, nets_torch, selfplay as SP
     from engine.dex import Dex
     dex = Dex()
-    files = sorted(glob.glob(str(GAMES / "**" / f"games_{gt}_*.jsonl.gz"), recursive=True),
-                   key=os.path.getmtime)[::-1]
-    data = nets.build_listwise(SP.iter_games(files), dex, gt, max_games=max_games, log=log)
+    data = nets.build_listwise(mixed_games(gt, max_games, replay_share, log), dex, gt, max_games=max_games, log=log)
     if len(data["S"]) < 200:
         log("  학습할 결정이 너무 적어 건너뜀")
         return None
     tr, va = nets.split(data)
-    net = nets.PolicyValueNet(len(data["S"][0]), data["O"][0].shape[1])
-    net.set_norm([data["S"][i] for i in tr[:20000]], [data["O"][i] for i in tr[:20000]])
+    cur = nets.load_net(gt) if warm else None
+    if cur is not None and cur.ds + cur.do > 0:
+        net = nets.surgery(cur, log=log)
+        nets.fit_new_norms(net, data)
+        lr, ep = 3e-4, max(4, epochs // 2)
+        log("  지금 최고 신경망에서 이어서 학습")
+    else:
+        net = nets.PolicyValueNet(len(data["S"][0]), data["O"][0].shape[1])
+        net.set_norm([data["S"][i] for i in tr[:20000]], [data["O"][i] for i in tr[:20000]])
+        lr, ep = 1e-3, epochs
     if nets_torch.available():
-        r = nets_torch.fit_torch(net, data, tr, va, epochs=epochs, log=log)
+        r = nets_torch.fit_torch(net, data, tr, va, epochs=ep, lr=lr, log=log)
         log(f"  학습 장치: {r['device']}")
     else:
         log("  학습 장치: CPU (numpy) — PyTorch 를 설치하면 GPU 로 학습")
-        net.fit_numpy(data, epochs=min(epochs, 10), tr_idx=tr, val_idx=va, log=log)
+        net.fit_numpy(data, epochs=min(ep, 10), lr=lr, tr_idx=tr, val_idx=va, log=log)
     m = net.evaluate(data, va[:3000])
     net.info = {"metrics": m, "games": data["meta"]["games"], "decisions": len(data["S"])}
     tmp = ROOT / "models" / f"net_{gt}_candidate.json"
@@ -198,6 +230,8 @@ def main():
     ap.add_argument("--games", type=int, default=240, help="회차마다 만들 대전 수")
     ap.add_argument("--train-games", type=int, default=6000, help="학습에 쓸 최근 판 수")
     ap.add_argument("--epochs", type=int, default=20)
+    ap.add_argument("--replay-share", type=float, default=0.3, help="학습 판 중 사람 기보 비율 (0 = 안 씀)")
+    ap.add_argument("--fetch-replays", type=int, default=10, help="회차마다 받을 리플레이 목록 쪽수 (0 = 안 받음)")
     ap.add_argument("--eval-games", type=int, default=40)
     ap.add_argument("--team-steps", type=int, default=6)
     ap.add_argument("--worlds", type=int, default=6)
@@ -219,6 +253,14 @@ def main():
             f.write(line + "\n")
     types = ["singles", "doubles"] if a.type == "both" else [a.type]
     settings = {"worlds": a.worlds, "rollouts": a.rollouts, "depth": a.depth}
+    # 패치 감지: 지난 채택 때의 데이터와 비교해 바뀐 포켓몬이 들어간 팀을 더 자주 대전시킨다
+    try:
+        import tools.patch_diff as PD
+        pd = PD.run(log=log)
+        if pd["changes"]:
+            settings["focus"] = pd["focus"]
+    except Exception as e:
+        log(f"  패치 감지 건너뜀: {type(e).__name__}: {e}")
     log(f"밤샘 학습 시작 · {a.hours}시간 · 작업자 {a.workers} · 형식 {types} · 회차 {st['iter'] + 1}부터")
     done = 0
     while time.time() < t_end:
@@ -229,8 +271,16 @@ def main():
         it = st["iter"]
         for gt in types:
             log(f"===== 회차 {it} · {'싱글' if gt == 'singles' else '더블'} =====")
+            if a.fetch_replays and a.replay_share > 0:
+                try:
+                    import tools.fetch_replays as FR
+                    kind = "bss" if gt == "singles" else "vgc"
+                    if FR.fetch(FR.champion_formats((kind,)), pages=a.fetch_replays, log=log):
+                        FR.parse_all(log=log)
+                except Exception as e:
+                    log(f"  리플레이 받기 건너뜀: {type(e).__name__}: {e}")
             generate(gt, a.games, a.workers, settings, seed=it * 37 + (0 if gt == "singles" else 11), log=log)
-            r = train(gt, log, a.train_games, a.epochs)
+            r = train(gt, log, a.train_games, a.epochs, a.replay_share)
             if not r:
                 continue
             cand, n_games = r
@@ -246,6 +296,13 @@ def main():
                     (hist / f"net_{gt}_{int(time.time())}.json").write_bytes(dst.read_bytes())
                 cand.replace(dst)
                 log(f"  → 새 신경망 채택 ({'첫 신경망' if best_wr is None else f'이전 최고 상대 {best_wr:.0%}'})")
+                try:   # 이 데이터로 학습한 신경망이 채택됐으니 패치 감지 기준을 지금 데이터로
+                    import tools.patch_diff as PD
+                    from engine.dex import DATA_DIR
+                    PD.snapshot(DATA_DIR)
+                    settings.pop("focus", None)
+                except Exception:
+                    pass
             else:
                 cand.unlink(missing_ok=True)
                 log(f"  → 유지 (이전 최고 상대 {best_wr:.0%} < 55%)")

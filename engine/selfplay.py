@@ -60,7 +60,7 @@ def compact_req(req: dict) -> dict:
 
 
 def play_game(bridge: Bridge, dex: Dex, fmt: str, teams: dict, policies: dict, seed: int,
-              game_id: str, max_turns: int = 200, record: bool = True) -> dict:
+              game_id: str, max_turns: int = 200, record: bool = True, keep_log: bool = False) -> dict:
     packed = {s: bridge.pack([to_showdown_set(dex, m) for m in teams[s]]) for s in ("p1", "p2")}
     views = {s: BattleView(s) for s in ("p1", "p2")}
     for s in ("p1", "p2"):
@@ -70,9 +70,12 @@ def play_game(bridge: Bridge, dex: Dex, fmt: str, teams: dict, policies: dict, s
                       p1=packed["p1"], p2=packed["p2"])
     pending, handled = {"p1": None, "p2": None}, {"p1": -1, "p2": -1}
     decisions = []
+    spec = []
     steps = 0
 
     def absorb(r):
+        if keep_log:
+            spec.extend(r.get("log", {}).get("spec", []))
         for s in ("p1", "p2"):
             views[s].feed(r.get("log", {}).get(s, []))
             rq = (r.get("requests") or {}).get(s)
@@ -122,22 +125,25 @@ def play_game(bridge: Bridge, dex: Dex, fmt: str, teams: dict, policies: dict, s
         bridge.call(op="end", id=game_id)
     winner = res.get("winner")
     w = "p1" if winner == "p1" else "p2" if winner == "p2" else None
-    return {
+    rec = {
         "v": 1, "id": game_id, "format": fmt, "gameType": views["p1"].game_type,
         "dataVersion": dex.meta.get("builtAt"), "seed": seed,
         "teams": teams, "policies": {s: policies[s].name for s in ("p1", "p2")},
         "decisions": decisions, "winner": w, "turns": views["p1"].turn,
         "endFainted": dict(views["p1"].fainted_count),
     }
+    if keep_log:
+        rec["log"] = spec   # 관전자 시점 로그 (리플레이 해석기 검증 · 나중에 다시 읽기용)
+    return rec
 
 
 def run(n_games: int, game_type: str = "singles", out_dir: Path | None = None, seed: int = 1,
-        policy_factory=None, ps_dir=None, log=print, explore=0.1) -> Path:
+        policy_factory=None, ps_dir=None, log=print, explore=0.1, focus=None) -> Path:
     dex = Dex()
     out_dir = Path(out_dir or GAMES_DIR) / (dex.meta.get("builtAt", "data").replace(":", "")[:15])
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"games_{game_type}_{seed}_{int(time.time())}.jsonl.gz"
-    tg = TeamGen(dex, seed=seed, game_type=game_type)
+    tg = TeamGen(dex, seed=seed, game_type=game_type, focus=focus)
     wins = {"p1": 0, "p2": 0, None: 0}
     t0 = time.time()
     with Bridge(ps_dir) as br, gzip.open(out, "wt", encoding="utf-8") as fo:

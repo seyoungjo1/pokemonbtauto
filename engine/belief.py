@@ -176,6 +176,8 @@ class OppBelief:
 def mon_from_view(dex: Dex, mv: dict, belief: OppBelief | None = None, known_set: dict | None = None) -> Mon:
     """BattleView 스냅샷의 포켓몬 한 마리 → 계산용 Mon."""
     if known_set:   # 내 포켓몬: 세트를 정확히 안다
+        from .teamgen import normalize_set
+        known_set = normalize_set(dex, known_set)
         m = Mon(species=known_set["species"], ability=known_set.get("ability", ""), item=known_set.get("item", ""),
                 nature=known_set.get("nature", "serious"), sp=dict(known_set.get("sp") or {}),
                 moves=list(known_set.get("moves") or []), gender=known_set.get("gender", ""))

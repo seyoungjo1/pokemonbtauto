@@ -18,6 +18,7 @@ from .damage import Ctx, calc
 from .dex import Dex, to_id
 from .mon import FieldState, Mon, SideState
 from .protocol import split_ident
+from .teamgen import normalize_set
 
 SETUP_BOOST_MOVES = {"swordsdance", "nastyplot", "dragondance", "calmmind", "bulkup", "quiverdance",
                      "shellsmash", "coil", "irondefense", "agility", "shiftgear", "workup", "tailglow",
@@ -59,7 +60,7 @@ class HeuristicPolicy:
 
     def start(self, side, team_sets, dex):
         self.side = side
-        self.sets = {dex.species[s["species"]]["name"]: s for s in team_sets}
+        self.sets = {dex.ident_name(s["species"]): normalize_set(dex, s) for s in team_sets}
         self.beliefs = {}
 
     # ------------------------------------------------------------ 상태 → 계산용 객체

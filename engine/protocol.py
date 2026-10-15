@@ -533,10 +533,15 @@ def legal_choices(req: dict) -> list:
     bench = [i + 1 for i, p in enumerate(pokemon)
              if not p.get("active") and not p["condition"].endswith("fnt") and not p.get("reviving")]
     if req.get("forceSwitch"):
+        needs = [bool(x) for x in req["forceSwitch"]]
+        short = len(bench) < sum(needs)   # 남은 포켓몬이 모자라면 남는 자리는 넘긴다
         slots = []
-        for need in req["forceSwitch"]:
-            slots.append([f"switch {b}" for b in bench] if need else ["pass"])
-        return _joint(slots, bench)
+        for need in needs:
+            slots.append(([f"switch {b}" for b in bench] + (["pass"] if short else [])) if need else ["pass"])
+        out = _joint(slots, bench)
+        want = min(len(bench), sum(needs))
+        out = [o for o in out if sum(p.startswith("switch") for p in o["parts"]) == want]
+        return out or [{"choice": ", ".join(["pass"] * len(needs)), "parts": ["pass"] * len(needs)}]
     slots = []
     actives = [p for p in pokemon if p.get("active")]
     doubles = len(req.get("active", [])) > 1

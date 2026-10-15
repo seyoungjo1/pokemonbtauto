@@ -18,7 +18,7 @@ from .dex import Dex, to_id
 from .policies import HeuristicPolicy
 from .protocol import split_ident
 from .psbridge import Bridge
-from .teamgen import to_showdown_set
+from .teamgen import normalize_set, to_showdown_set
 
 _SHARED = {}
 
@@ -61,7 +61,7 @@ class SearchPolicy:
     def start(self, side, team_sets, dex):
         self.side = side
         self.sets = team_sets
-        self.by_name = {dex.species[s["species"]]["name"]: s for s in team_sets}
+        self.by_name = {dex.ident_name(s["species"]): s for s in team_sets}
         self.teacher.start(side, team_sets, dex)
         self.beliefs = {}
 
@@ -85,6 +85,7 @@ class SearchPolicy:
             s = dict(self.by_name.get(name) or {})
             if not s:
                 continue
+            s = normalize_set(dex, s)   # 아직 메가진화 전이면 원래 모습으로
             pos = len(sets) + 1
             species_now = to_id(p["details"].split(",")[0])
             if dex.species.get(species_now, {}).get("isMega"):
@@ -150,7 +151,7 @@ class SearchPolicy:
         me = snap["me"]
         opp = "p2" if me == "p1" else "p1"
         dex = self.dex
-        pack = lambda sets: self.bridge.pack([to_showdown_set(dex, s) for s in sets])
+        pack = lambda sets: self.bridge.pack([to_showdown_set(dex, s, keep_mega=True) for s in sets])
         sc_sides = {}
         for s, key in ((me, me), (opp, opp)):
             d = snap["sideConds"].get(s, {})

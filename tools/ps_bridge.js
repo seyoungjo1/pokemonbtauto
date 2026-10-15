@@ -10,7 +10,7 @@
  *   {"op":"choose","id":"g1","side":"p1","choice":"move 1"}
  *   {"op":"end","id":"g1"}
  * 출력 (요청마다 한 줄)
- *   {"id":"g1","log":{"p1":[...],"p2":[...],"omni":[...]},"requests":{"p1":{...}|null,"p2":...},
+ *   {"id":"g1","log":{"p1":[...],"p2":[...],"omni":[...],"spec":[...]},"requests":{"p1":{...}|null,"p2":...},
  *    "ended":false,"winner":null,"turn":3}
  *
  * 로그는 쇼다운 프로토콜 그대로이며, |split| 비밀/공개 줄을 각 플레이어 시점으로 나눠 준다.
@@ -27,7 +27,7 @@ const battles = new Map();
 const searcher = require('./ps_search.js')(Battle);
 
 function splitLog(lines) {
-	const out = { p1: [], p2: [], omni: [] };
+	const out = { p1: [], p2: [], omni: [], spec: [] };
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		const m = /^\|split\|(p[1-4])$/.exec(line);
@@ -35,10 +35,11 @@ function splitLog(lines) {
 			const secret = lines[i + 1], pub = lines[i + 2];
 			for (const s of ['p1', 'p2']) out[s].push(s === m[1] ? secret : pub);
 			out.omni.push(secret);
+			out.spec.push(pub);   // 관전자 시점 (= 쇼다운 리플레이와 같은 정보)
 			i += 2;
 			continue;
 		}
-		out.p1.push(line); out.p2.push(line); out.omni.push(line);
+		out.p1.push(line); out.p2.push(line); out.omni.push(line); out.spec.push(line);
 	}
 	return out;
 }

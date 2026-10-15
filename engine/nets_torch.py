@@ -91,7 +91,8 @@ def fit_torch(net, data, tr_idx, val_idx, epochs=20, lr=1e-3, batch=256, log=pri
 
     rng = np.random.default_rng(seed)
     tr = np.array(tr_idx)
-    best = (1e9, None)
+    # 정책과 가치는 따로 가장 좋았던 때를 고른다 (가치는 한 판의 결정들이 같은 정답을 공유해 더 빨리 과적합된다)
+    best_p, best_v = (1e9, None), (1e9, None)
     bad = 0
     for ep in range(epochs):
         pol.train(), val.train()
@@ -116,20 +117,23 @@ def fit_torch(net, data, tr_idx, val_idx, epochs=20, lr=1e-3, batch=256, log=pri
             ce, vl, t1, acc = [x / max(1, n) for x in tot]
         if log:
             log(f"    [GPU] 에폭 {ep + 1}: 정책 손실 {ce:.4f} · 정답 일치 {t1:.1%} · 가치 손실 {vl:.4f} · 승패 예측 {acc:.1%}")
-        if ce + vl < best[0] - 1e-4:
-            best = (ce + vl, ({k: v.clone() for k, v in pol.state_dict().items()},
-                              {k: v.clone() for k, v in val.state_dict().items()}))
-            bad = 0
-        else:
-            bad += 1
-            if bad >= patience:
-                break
-    if best[1]:
-        pol.load_state_dict(best[1][0])
-        val.load_state_dict(best[1][1])
+        improved = False
+        if ce < best_p[0] - 1e-4:
+            best_p = (ce, {k: v.clone() for k, v in pol.state_dict().items()})
+            improved = True
+        if vl < best_v[0] - 1e-4:
+            best_v = (vl, {k: v.clone() for k, v in val.state_dict().items()})
+            improved = True
+        bad = 0 if improved else bad + 1
+        if bad >= patience:
+            break
+    if best_p[1]:
+        pol.load_state_dict(best_p[1])
+    if best_v[1]:
+        val.load_state_dict(best_v[1])
     _to_np(torch, pol, net.pol)
     _to_np(torch, val, net.val)
-    return {"device": device_name(), "epochs": ep + 1, "best": best[0]}
+    return {"device": device_name(), "epochs": ep + 1, "best": best_p[0] + best_v[0]}
 
 
 def selfcheck():

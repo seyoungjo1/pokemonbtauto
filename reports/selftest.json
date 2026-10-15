@@ -1,14 +1,72 @@
 {
  "dataVersion": "2026-10-15T05:16:14+00:00",
- "parityFiles": [],
+ "parityFiles": [
+  "parity_doubles.json",
+  "parity_singles.json"
+ ],
  "checks": {
+  "data": {
+   "ok": true,
+   "errors": [],
+   "summary": "포켓몬 347 · 기술 500 · 도구 148 · 특성 316",
+   "seconds": 0.0
+  },
+  "stats": {
+   "ok": true,
+   "checked": 14000,
+   "mismatch": 0,
+   "examples": [],
+   "summary": "실능력치 14000개 중 14000개 일치",
+   "seconds": 0.16
+  },
+  "damage": {
+   "ok": true,
+   "total": 4907,
+   "exact": 4907,
+   "rate": 1.0,
+   "supported_total": 4768,
+   "supported_exact": 4768,
+   "supported_rate": 1.0,
+   "suspects": [],
+   "fails": [],
+   "summary": "지원 범위 4768/4768 일치 (100.00%) · 전체 4907/4907 (100.00%)",
+   "seconds": 1.12
+  },
+  "paste": {
+   "ok": true,
+   "errors": [],
+   "summary": "팀 텍스트 읽기/쓰기 정상",
+   "seconds": 0.0
+  },
   "features": {
    "ok": true,
    "errors": [],
    "summary": "상태 묶음 21개 · 선택지 묶음 11개 · 입력 319칸",
-   "seconds": 0.08
+   "seconds": 0.18
+  },
+  "sim": {
+   "ok": true,
+   "errors": [],
+   "summary": "A 팀 승률 22% / 자리 바꿔 B 팀 승률 82% · 마지막 한 마리 처치 수 평가 [1, 1] · 선출 승률표 16칸, 범위 0.00~1.00",
+   "seconds": 5.13
+  },
+  "replay": {
+   "ok": true,
+   "errors": [],
+   "summary": "싱글 결정 복원 90%·정답 포함 100% · 더블 85%·96% · 별명·채팅 무관 · 메가 규칙 정상",
+   "seconds": 5.49
+  },
+  "net": {
+   "ok": true,
+   "summary": "singles: ?판 학습 / doubles: 신경망 없음 / 신경망 수술 출력 보존 정상 (최대 차이 5.1e-08)",
+   "seconds": 0.06
+  },
+  "torch": {
+   "ok": true,
+   "skipped": "PyTorch 없음 — numpy 로 학습 (GPU 학습을 하려면 밤샘학습.bat 이 설치)",
+   "seconds": 0.01
   }
  },
  "ok": true,
- "seconds": 0.1
+ "seconds": 12.3
 }

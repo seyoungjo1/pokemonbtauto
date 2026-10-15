@@ -85,6 +85,21 @@ class Dex:
     def immune(self, move_type: str, def_type: str) -> bool:
         return self.typechart.get(def_type, {}).get("damageTaken", {}).get(move_type, 0) == 3
 
+    def base_of_mega(self, species_id: str) -> str:
+        """메가 모습이면 메가진화 전 종, 아니면 그대로."""
+        sp = self.species.get(species_id) or {}
+        if sp.get("isMega"):
+            b = to_id(sp.get("changesFrom") or sp.get("baseSpecies") or "")
+            if b in self.species:
+                return b
+        return species_id
+
+    def ident_name(self, species_id: str) -> str:
+        """쇼다운이 대전에서 부르는 이름 ('p1a: 이름'). 별명이 없으면 원래 종 이름
+        (리전폼·폼·메가 모두 앞부분만: Arcanine-Hisui → Arcanine, Charizard-Mega-Y → Charizard)."""
+        sp = self.species.get(self.base_of_mega(species_id)) or {}
+        return sp.get("baseSpecies") or sp.get("name") or species_id
+
     def mega_for(self, species_id: str, item_id: str) -> str | None:
         it = self.items.get(item_id or "")
         if not it or not it.get("megaStone"):

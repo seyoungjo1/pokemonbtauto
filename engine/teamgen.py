@@ -34,7 +34,7 @@ RESIST_BERRY = {
 class TeamGen:
     """meta 비율만큼은 실제 사용률 통계(같이 쓰는 포켓몬·세트)로, 나머지는 세트 목록으로 팀을 만든다."""
 
-    def __init__(self, dex: Dex, seed=None, game_type="singles", meta=0.7):
+    def __init__(self, dex: Dex, seed=None, game_type="singles", meta=0.7, focus=None):
         self.dex = dex
         self.rng = random.Random(seed)
         self.pool = [s for s in dex.sets if s in dex.species]
@@ -42,6 +42,11 @@ class TeamGen:
         self.meta = meta
         self.usage = ((dex.usage.get(game_type) or {}).get("pokemon") or {})
         self.usage = {k: v for k, v in self.usage.items() if k in dex.species and dex.learnsets.get(k)}
+        # 패치로 바뀐 포켓몬을 더 자주 (tools/patch_diff.py 의 focus: 종 → 가중치)
+        self.focus = {k: float(v) for k, v in (focus or {}).items()}
+
+    def _fw(self, sid):
+        return max(self.focus.get(sid, 1.0), self.focus.get(self.dex.base_of_mega(sid), 1.0)) if self.focus else 1.0
 
     # ------------------------------------------------------------
     def team(self, size: int = 6, explore: float = 0.1) -> list:
@@ -54,9 +59,10 @@ class TeamGen:
         team, bases, items = [], set(), set()
         megas = 0
         tries = 0
+        fw = [self._fw(s) for s in self.pool] if self.focus else None
         while len(team) < size and tries < 400:
             tries += 1
-            sid = rng.choice(self.pool)
+            sid = rng.choices(self.pool, weights=fw)[0] if fw else rng.choice(self.pool)
             sp = self.dex.species[sid]
             base = sp["baseSpecies"]
             if base in bases:
@@ -77,7 +83,7 @@ class TeamGen:
     def meta_team(self, size=6) -> list:
         rng, dex, U = self.rng, self.dex, self.usage
         team, bases, items, megas = [], set(), set(), 0
-        weights = {k: v["usage"] ** 0.8 for k, v in U.items()}
+        weights = {k: v["usage"] ** 0.8 * self._fw(k) for k, v in U.items()}
         tries = 0
         while len(team) < size and tries < 300:
             tries += 1
@@ -242,13 +248,36 @@ class TeamGen:
         return out
 
 
-def to_showdown_set(dex: Dex, m: dict) -> dict:
-    """쇼다운 Teams.pack 이 받는 형태 (레벨 50, SP 는 evs 자리에)."""
+def normalize_set(dex: Dex, m: dict) -> dict:
+    """메가 모습으로 적힌 세트 → 메가진화 전 종 + 메가스톤 + 원래 종의 특성 (megaTarget 에 메가 모습).
+
+    메가 모습 그대로 쇼다운에 넣으면 1턴부터 메가 상태로 시작해 '한 판에 한 번' 규칙이 깨진다.
+    """
+    sp = dex.species.get(m.get("species") or "")
+    if not sp or not sp.get("isMega"):
+        return m
+    base = dex.base_of_mega(m["species"])
+    if base == m["species"]:
+        return m
+    stone = dex.find("items", sp.get("requiredItem") or "") or m.get("item") or ""
+    base_abs = [to_id(a) for a in dex.species[base]["abilities"].values()]
+    ab = m.get("ability")
+    if ab not in base_abs:
+        u = (dex.usage_of(base) or {}).get("abilities") or {}
+        ab = max((a for a in u if a in base_abs), key=u.get, default=base_abs[0] if base_abs else "")
+    return {**m, "species": base, "item": stone, "ability": ab, "megaTarget": m["species"]}
+
+
+def to_showdown_set(dex: Dex, m: dict, keep_mega: bool = False) -> dict:
+    """쇼다운 Teams.pack 이 받는 형태 (레벨 50, SP 는 evs 자리에).
+
+    keep_mega: 수읽기 장면처럼 '이미 메가진화한 상태'를 그대로 만들 때만 True.
+    """
+    if not keep_mega:
+        m = normalize_set(dex, m)
     sp = dex.species[m["species"]]
     it = dex.items.get(m.get("item") or "")
     ab = dex.abilities.get(m.get("ability") or "")
-    if sp.get("isMega"):   # 메가진화 후 모습으로 넣을 때는 메가의 특성
-        ab = dex.abilities.get(to_id(sp["abilities"].get("0", ""))) or ab
     return {
         "name": sp["name"], "species": sp["name"], "item": it["name"] if it else "",
         "ability": ab["name"] if ab else "", "moves": [dex.moves[x]["name"] for x in m["moves"] if x in dex.moves],

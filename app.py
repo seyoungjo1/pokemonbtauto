@@ -672,6 +672,74 @@ def api_bring_sim():
     return ok(job=start_job("bring", fn))
 
 
+# ======================================================================== AI 와 대전
+PLAY = {"s": None}
+PLAY_LOCK = threading.Lock()
+
+
+@app.route("/api/play/levels")
+def api_play_levels():
+    from engine.playsession import AI_LEVELS
+    from engine import nets
+    have = {gt: nets.load_net(gt) is not None for gt in ("singles", "doubles")}
+    return ok(levels=[[k, v] for k, v in AI_LEVELS.items()], nets=have, sim=sim_available())
+
+
+@app.route("/api/play/start", methods=["POST"])
+def api_play_start():
+    if not sim_available():
+        return err("AI 와 대전하려면 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.")
+    from engine.playsession import PlaySession
+    b = request.get_json(force=True) or {}
+    gt = b.get("gameType", "singles")
+    team = b.get("team") or []
+    with PLAY_LOCK:
+        if PLAY["s"]:
+            try:
+                PLAY["s"].close()
+            except Exception:
+                pass
+            PLAY["s"] = None
+        if not team:   # 팀이 없으면 메타 팀을 하나 만들어 준다
+            from engine.teamgen import TeamGen
+            tg = TeamGen(dex(), seed=int(time.time()) % 99991, game_type=gt)
+            team = (tg.meta_team(6) if tg.usage else []) or tg.team(6)
+        try:
+            PLAY["s"] = PlaySession(dex(), gt, team, ai=b.get("ai", "search"))
+        except ValueError as e:
+            return err(str(e))
+        return ok(state=PLAY["s"].state())
+
+
+@app.route("/api/play/choose", methods=["POST"])
+def api_play_choose():
+    b = request.get_json(force=True) or {}
+    with PLAY_LOCK:
+        s = PLAY["s"]
+        if not s:
+            return err("진행 중인 대전이 없습니다.")
+        try:
+            return ok(state=s.choose(b.get("choice", "")))
+        except ValueError as e:
+            return err(str(e))
+
+
+@app.route("/api/play/state")
+def api_play_state():
+    s = PLAY["s"]
+    return ok(state=s.state() if s else None)
+
+
+@app.route("/api/play/forfeit", methods=["POST"])
+def api_play_forfeit():
+    with PLAY_LOCK:
+        s = PLAY["s"]
+        if s:
+            s.forfeit()
+            return ok(state=s.state())
+    return ok(state=None)
+
+
 # ======================================================================== 업데이트
 @app.route("/api/update/check", methods=["POST"])
 def api_update_check():

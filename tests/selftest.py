@@ -270,11 +270,15 @@ def check_net(dex):
         except Exception as e:
             out["ok"] = False
             msgs.append(f"{gt}: 불러오기 실패 — {e}")
+    sg = nets.selfcheck_surgery()
+    if not sg["ok"]:
+        out["ok"] = False
+    msgs.append(f"신경망 수술 출력 보존 {'정상' if sg['ok'] else '실패'} (최대 차이 {sg['maxDiff']:.1e})")
     out["summary"] = " / ".join(msgs)
     return out
 
 
-CHECKS = ["data", "stats", "damage", "paste", "features", "sim", "net", "torch"]
+CHECKS = ["data", "stats", "damage", "paste", "features", "sim", "replay", "net", "torch"]
 
 
 def run(which=None, verbose=True) -> dict:
@@ -297,6 +301,9 @@ def run(which=None, verbose=True) -> dict:
             r = check_features(dex)
         elif name == "sim":
             r = check_sim()
+        elif name == "replay":
+            from engine import replay_parse
+            r = replay_parse.selfcheck()
         elif name == "model":
             r = check_model(dex)
         elif name == "net":

@@ -123,6 +123,7 @@ function showPage(p) {
   if (p === 'bring') renderBring();
   if (p === 'calc') renderCalc();
   if (p === 'build') renderBuild();
+  if (p === 'play') renderPlay();
 }
 $$('#tabs button').forEach(b => b.addEventListener('click', () => showPage(b.dataset.p)));
 $$('#gtSeg button').forEach(b => b.addEventListener('click', () => {
@@ -834,6 +835,158 @@ $('#spriteAll').addEventListener('click', async () => {
 });
 function applyTheme(t) { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); store.set('theme', t); $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.th === t)); }
 $$('#themeSeg button').forEach(b => b.addEventListener('click', () => applyTheme(b.dataset.th)));
+
+
+// ======================================================================== AI와 대전
+const PLAY = { st: null, busy: false, pick: [], sel: {}, mega: {}, teamMode: store.get('playTeam', 'team'), levels: null };
+$$('#playTeamSeg button').forEach(b => {
+  b.classList.toggle('on', b.dataset.t === PLAY.teamMode);
+  b.addEventListener('click', () => { PLAY.teamMode = b.dataset.t; store.set('playTeam', PLAY.teamMode); $$('#playTeamSeg button').forEach(x => x.classList.toggle('on', x === b)); });
+});
+async function renderPlay() {
+  if (!PLAY.levels) {
+    try {
+      const r = await api('/api/play/levels');
+      PLAY.levels = r;
+      const sel = $('#playAi'); sel.innerHTML = '';
+      for (const [k, v] of r.levels) sel.append(h('option', { value: k, selected: k === store.get('playAi', 'search') }, v));
+      sel.onchange = () => store.set('playAi', sel.value);
+      if (!r.sim) { $('#playBody').innerHTML = ''; $('#playBody').append(h('div', { class: 'card' }, h('div', { class: 'empty' }, 'AI 와 대전하려면 Node.js 와 쇼다운이 필요합니다. 밤샘학습.bat 을 한 번 실행하면 준비됩니다.'))); return; }
+    } catch (e) { toast(e.message); }
+  }
+  if (!PLAY.st) { try { const r = await api('/api/play/state'); PLAY.st = r.state; } catch (e) {} }
+  drawPlay();
+}
+$('#playStart').addEventListener('click', async () => {
+  if (PLAY.busy) return;
+  if (PLAY.st && !PLAY.st.ended && !confirm('진행 중인 대전을 그만두고 새로 시작할까요?')) return;
+  const team = PLAY.teamMode === 'team' ? (S.team.team || []).filter(s => s.species && (s.moves || []).length) : [];
+  if (PLAY.teamMode === 'team' && team.length < (S.gt === 'doubles' ? 4 : 3)) { toast('팀 탭에 기술까지 정한 포켓몬이 부족합니다 — 메타 팀 무작위로 시작해 보세요'); return; }
+  await playCall('/api/play/start', { gameType: S.gt, team, ai: $('#playAi').value || 'search' }, '대전을 준비하고 있습니다…');
+});
+$('#playForfeit').addEventListener('click', async () => { if (PLAY.st && !PLAY.st.ended && confirm('기권할까요?')) await playCall('/api/play/forfeit', {}, ''); });
+async function playCall(url, body, msg) {
+  PLAY.busy = true; PLAY.busyMsg = msg; drawPlay();
+  try { const r = await api(url, body); PLAY.st = r.state; PLAY.pick = []; PLAY.sel = {}; PLAY.mega = {}; }
+  catch (e) { toast(e.message); }
+  PLAY.busy = false; drawPlay();
+}
+function playSend(choice) { return playCall('/api/play/choose', { choice }, 'AI 가 생각하고 있습니다…'); }
+function pmonCard(m, mine) {
+  const st = [m.statusKo, ...Object.entries(m.boosts || {}).map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`)].filter(Boolean).join(' · ');
+  const hpTxt = mine && m.maxhp ? `${m.hp}/${m.maxhp}` : `${Math.round(m.hpPct)}%`;
+  const extra = mine ? '' : [m.ability && ('특성 ' + m.ability), m.item && ('도구 ' + m.item), (m.moves || []).length && ('쓴 기술 ' + m.moves.join(', '))].filter(Boolean).join(' · ');
+  return h('div', { class: 'card pmon ' + (mine ? 'mine' : 'opp') }, sprite(m.species, 'lg'),
+    h('div', { class: 'info' }, h('div', { class: 'row' }, h('span', { class: 'nm' }, m.ko + (m.mega ? ' (메가)' : '')), h('span', { class: 'right small muted' }, hpTxt)),
+      h('div', { class: 'hpbar ' + hpClass(m.hpPct) }, h('i', { style: `width:${m.hpPct}%` })),
+      st ? h('div', { class: 'meta' }, st) : null, extra ? h('div', { class: 'meta' }, extra) : null));
+}
+function pbench(list, preview, mine) {
+  const row = h('div', { class: 'pbench' });
+  const seen = new Set(list.map(m => m.species));
+  for (const m of list.filter(x => !x.slot || x.fainted)) {
+    row.append(h('div', { class: 'b' + (m.fainted ? ' fnt' : '') }, sprite(m.species, 'sm'), h('span', {}, m.ko), h('span', { class: 'muted' }, m.fainted ? '쓰러짐' : Math.round(m.hpPct) + '%')));
+  }
+  if (!mine) for (const p of preview || []) {
+    if ([...seen].some(s => s === p.species || s.startsWith(p.species))) continue;
+    row.append(h('div', { class: 'b unseen', title: '아직 안 나옴 (데려왔는지 모름)' }, sprite(p.species, 'sm'), h('span', {}, p.ko), h('span', { class: 'muted' }, '미등장')));
+  }
+  return row;
+}
+function drawPlay() {
+  const body = $('#playBody'); const st = PLAY.st;
+  $('#playStatus').textContent = PLAY.busy ? (PLAY.busyMsg || '…') : !st ? '대기' : st.ended ? '끝' : `${st.turn}턴 · ${st.aiLabel}`;
+  $('#playStart').disabled = PLAY.busy; $('#playForfeit').disabled = PLAY.busy || !st || st.ended;
+  if (!st) { if (PLAY.busy) { body.innerHTML = ''; body.append(h('div', { class: 'card' }, h('div', { class: 'empty' }, h('span', { class: 'thinking' }, PLAY.busyMsg)))); } return; }
+  body.innerHTML = '';
+  const actOpp = st.opp.filter(m => m.slot && !m.fainted).sort((a, b) => a.slot.localeCompare(b.slot));
+  const actMe = st.mine.filter(m => m.slot && !m.fainted).sort((a, b) => a.slot.localeCompare(b.slot));
+  const left = h('div', { class: 'field' },
+    h('div', { class: 'card' }, h('div', { class: 'hd' }, '상대 ', h('span', { class: 'sub' }, st.aiLabel)),
+      h('div', { class: 'col', style: 'gap:8px;padding:10px' }, ...(actOpp.length ? actOpp.map(m => pmonCard(m, false)) : [h('div', { class: 'small muted' }, '아직 나오지 않음')])),
+      pbench(st.opp, st.oppPreview, false)),
+    h('div', { class: 'card' }, h('div', { class: 'hd' }, '나'),
+      h('div', { class: 'col', style: 'gap:8px;padding:10px' }, ...(actMe.length ? actMe.map(m => pmonCard(m, true)) : [h('div', { class: 'small muted' }, '선출을 고르세요')])),
+      pbench(st.mine, null, true)),
+    (st.weather || st.terrain) ? h('div', { class: 'small muted' }, [st.weather && ('날씨 ' + st.weather), st.terrain && ('필드 ' + st.terrain)].filter(Boolean).join(' · ')) : null);
+  const mid = h('div', { class: 'card' }, h('div', { class: 'hd' }, st.ended ? '결과' : '내 선택', h('span', { class: 'sub' }, PLAY.busy ? '' : (st.aiSeconds || []).length ? `AI 가 최근 ${st.aiSeconds.slice(-1)[0]}초 생각함` : '')));
+  if (PLAY.busy) mid.append(h('div', { class: 'empty' }, h('span', { class: 'thinking' }, PLAY.busyMsg)));
+  else if (st.ended) {
+    const win = st.winner === 'me';
+    mid.append(h('div', { class: 'result ' + (win ? 'win' : 'lose') }, win ? '승리했습니다!' : '패배했습니다'),
+      h('div', { class: 'empty small' }, st.saved ? `이 대전은 학습 데이터에 저장되었습니다 (${st.saved}). 다음 학습 때 사람의 선택으로 쓰입니다.` : ''),
+      h('div', { class: 'row', style: 'justify-content:center;padding-bottom:16px' }, h('button', { class: 'btn primary', onclick: () => $('#playStart').click() }, '한 판 더')));
+  } else if (st.options) mid.append(playOptions(st));
+  else mid.append(h('div', { class: 'empty' }, '상대를 기다리는 중…'));
+  const logEl = h('div', { class: 'plog' }, ...st.log.map(t => h('div', { class: t.startsWith('──') ? 'turn' : t.startsWith('★') ? 'end' : '' }, t)));
+  const right = h('div', { class: 'card logcol' }, h('div', { class: 'hd' }, '대전 기록'), logEl);
+  body.append(h('div', { class: 'play' }, left, mid, right));
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function playOptions(st) {
+  const o = st.options;
+  const box = h('div', { class: 'popts' });
+  if (o.kind === 'preview') {
+    const need = o.pick, leads = need > 3 ? 2 : 1;
+    box.append(h('div', { class: 'small muted' }, `${need}마리를 고르세요. 처음 고른 ${leads}마리가 선봉입니다.`));
+    const grid = h('div', { class: 'pick6' });
+    for (const m of o.mons) {
+      const k = PLAY.pick.indexOf(m.n);
+      grid.append(h('div', { class: 'card p pk' + (k >= 0 ? ' on' : ''), onclick: () => {
+        if (k >= 0) PLAY.pick.splice(k, 1); else if (PLAY.pick.length < need) PLAY.pick.push(m.n);
+        drawPlay();
+      } }, k >= 0 ? h('span', { class: 'no' }, k < leads ? '선봉' : String(k + 1)) : null, sprite(m.species), h('b', { class: 'small' }, m.ko),
+        h('span', { class: 'small muted' }, m.item || ''), h('span', { class: 'small muted', style: 'text-align:center' }, (m.moves || []).join(' · '))));
+    }
+    box.append(grid, h('div', { class: 'row' }, h('button', { class: 'btn primary', disabled: PLAY.pick.length !== need, onclick: () => playSend('team ' + PLAY.pick.join('')) }, '이 선출로 시작'),
+      h('button', { class: 'btn ghost', onclick: () => { PLAY.pick = []; drawPlay(); } }, '다시 고르기')));
+    return box;
+  }
+  const multi = o.slots.length > 1;
+  for (const slot of o.slots) {
+    const si = slot.slot;
+    const sel = PLAY.sel[si];
+    const sec = h('div', { class: 'col', style: 'gap:8px' }, h('div', { class: 'slot-hd' }, (multi ? (si === 0 ? '왼쪽 · ' : '오른쪽 · ') : '') + (o.kind === 'force' ? '교체할 포켓몬' : (slot.who + '의 행동'))));
+    const moves = slot.entries.filter(e => e.kind === 'move');
+    const canMega = moves.some(e => e.mega);
+    if (moves.length) {
+      // 같은 기술의 대상별 항목은 하나로 묶는다
+      const groups = [];
+      for (const e of moves) { const base = e.part.split(' ').slice(0, 2).join(' '); let g = groups.find(x => x.base === base); if (!g) groups.push(g = { base, e, tg: [] }); if (e.target) g.tg.push(e); }
+      const grid = h('div', { class: 'mvgrid' });
+      for (const g of groups) {
+        const on = sel && sel.startsWith(g.base) && !sel.startsWith('switch');
+        grid.append(h('button', { class: 'mvbtn' + (on ? ' on' : ''), onclick: () => {
+          PLAY.sel[si] = g.tg.length ? g.tg[0].part : g.e.part;
+          if (!multi && !g.tg.length) return playSend(PLAY.sel[si] + (PLAY.mega[si] ? ' mega' : ''));
+          drawPlay();
+        } }, h('span', { class: 't1' }, g.e.type ? typeBadge(g.e.type) : null, g.e.label),
+          h('span', { class: 't2' }, [g.e.category === 'Status' ? '변화' : g.e.category === 'Physical' ? '물리' : g.e.category === 'Special' ? '특수' : '', g.e.power ? '위력 ' + g.e.power : '', g.e.pp != null ? `PP ${g.e.pp}/${g.e.maxpp}` : ''].filter(Boolean).join(' · '))));
+      }
+      sec.append(grid);
+      const cur = groups.find(g => sel && sel.startsWith(g.base) && g.tg.length);
+      if (cur) sec.append(h('div', { class: 'tgts' }, h('span', { class: 'small muted' }, '대상'), ...cur.tg.map(e => h('button', { class: 'btn sm' + (sel === e.part ? ' primary' : ''), onclick: () => { PLAY.sel[si] = e.part; if (!multi) return playSend(e.part + (PLAY.mega[si] ? ' mega' : '')); drawPlay(); } }, e.target))));
+      if (canMega) sec.append(h('label', { class: 'chk small' }, h('input', { type: 'checkbox', checked: !!PLAY.mega[si], onchange: (e) => { PLAY.mega[si] = e.target.checked; if (e.target.checked) for (const k of Object.keys(PLAY.mega)) if (+k !== si) PLAY.mega[k] = false; drawPlay(); } }), '메가진화하면서'));
+    }
+    const sw = slot.entries.filter(e => e.kind === 'switch');
+    if (sw.length) sec.append(h('div', { class: 'small muted' }, o.kind === 'force' ? '' : '교체'), h('div', { class: 'swrow' }, ...sw.map(e => {
+      const hp = e.condition.split(' ')[0];
+      return h('button', { class: 'swbtn' + (sel === e.part ? ' on' : ''), onclick: () => { PLAY.sel[si] = e.part; if (!multi) return playSend(e.part); drawPlay(); } }, sprite(e.species, 'sm'), e.label, h('span', { class: 'small muted' }, hp));
+    })));
+    const pass = slot.entries.find(e => e.kind === 'pass');
+    if (pass && slot.entries.length === 1) { PLAY.sel[si] = 'pass'; sec.append(h('div', { class: 'small muted' }, '이 자리는 넘깁니다')); }
+    else if (pass) sec.append(h('button', { class: 'btn sm ghost', onclick: () => { PLAY.sel[si] = 'pass'; drawPlay(); } }, '넘기기'));
+    box.append(sec);
+  }
+  if (multi) {
+    const parts = o.slots.map(sl => { const p = PLAY.sel[sl.slot]; return p && p !== 'pass' && PLAY.mega[sl.slot] && p.startsWith('move') ? p + ' mega' : p; });
+    const choice = parts.every(Boolean) ? parts.join(', ') : null;
+    const legal = choice && o.joint.includes(choice);
+    box.append(h('div', { class: 'row' }, h('button', { class: 'btn primary', disabled: !legal, onclick: () => playSend(choice) }, '이대로 행동'),
+      choice && !legal ? h('span', { class: 'small', style: 'color:var(--bad)' }, '같이 고를 수 없는 조합입니다 (같은 포켓몬으로 두 번 교체 등)') : null));
+  }
+  return box;
+}
 
 // ======================================================================== 시작
 async function loadMeta() {
