@@ -174,7 +174,46 @@ module.exports = function makeSearch(Battle) {
 		return parts.join(', ');
 	}
 
-	// ---------------------------------------------------------------- 판세 평가
+	// ---------------------------------------------------------------- 판세 평가 (선생님의 가치 판단)
+	// 남은 포켓몬끼리의 대결을 빠르게 끝까지 따져 본다:
+	//   나와 있는 둘이 서로 가장 센 기술을 주고받고(빠른 쪽 먼저), 쓰러지면 그 편은 남은 포켓몬 중
+	//   지금 상대에게 가장 유리한 포켓몬을 낸다. 끝까지 남은 쪽의 남은 HP 로 승률을 정한다.
+	function raceValue(b, meSide, oppSide) {
+		const live = (side) => side.pokemon.filter(p => !p.fainted && p.hp > 0).map(p => ({ p, hp: p.hp / p.maxhp, act: p.isActive }));
+		let A = live(meSide), B = live(oppSide);
+		if (!A.length || !B.length) return A.length ? 1 : (B.length ? 0 : 0.5);
+		const tr = !!b.field.getPseudoWeather('trickroom');
+		const memo = new Map();
+		const hit = (x, y) => {
+			const k = x.p.position + x.p.side.id + '>' + y.p.position + y.p.side.id + x.p.species.id + y.p.species.id;
+			if (!memo.has(k)) memo.set(k, Math.max(0.0001, bestVs(b, x.p, y.p)));
+			return memo.get(k);
+		};
+		const spe = (x) => x.p.getStat('spe', false, true) * (x.p.status === 'par' ? 0.5 : 1);
+		const first = (x, y) => tr ? spe(x) < spe(y) : spe(x) > spe(y);
+		const pickNext = (mine, foe) => {
+			let best = null, bs = -1e9;
+			for (const x of mine) {
+				const s = hit(x, foe) / Math.max(foe.hp, 0.01) - hit(foe, x) / Math.max(x.hp, 0.01) + (first(x, foe) ? 0.3 : 0);
+				if (s > bs) { bs = s; best = x; }
+			}
+			return best;
+		};
+		let a = A.find(x => x.act) || A[0];
+		let o = B.find(x => x.act) || B[0];
+		let guard = 0;
+		while (a && o && guard++ < 40) {
+			const order = first(a, o) ? [[a, o], [o, a]] : [[o, a], [a, o]];
+			for (const [x, y] of order) {
+				if (x.hp <= 0) continue;
+				y.hp -= hit(x, y);
+			}
+			if (a.hp <= 0) { A = A.filter(x => x !== a); a = A.length ? pickNext(A, o) : null; }
+			if (o.hp <= 0) { B = B.filter(x => x !== o); o = B.length ? pickNext(B, a || o) : null; }
+		}
+		const ma = A.reduce((s, x) => s + Math.max(0, x.hp), 0), mb = B.reduce((s, x) => s + Math.max(0, x.hp), 0);
+		return 1 / (1 + Math.exp(-2.5 * (ma - mb)));
+	}
 	function evalSide(side) {
 		let v = 0;
 		for (const p of side.pokemon) {
@@ -187,10 +226,13 @@ module.exports = function makeSearch(Battle) {
 		}
 		return v;
 	}
-	function leafValue(b, me) {
+	function leafValue(b, me, mode) {
 		if (b.ended) return b.winner === me ? 1 : (b.winner ? 0 : 0.5);
 		const s = b.sides[0].id === me ? [b.sides[0], b.sides[1]] : [b.sides[1], b.sides[0]];
-		return 1 / (1 + Math.exp(-2.2 * (evalSide(s[0]) - evalSide(s[1]))));
+		const material = 1 / (1 + Math.exp(-2.2 * (evalSide(s[0]) - evalSide(s[1]))));
+		if (mode === 'material') return material;
+		const race = raceValue(b, s[0], s[1]);
+		return mode === 'race' ? race : 0.65 * race + 0.35 * material;
 	}
 
 	function mulberry(a) {
@@ -219,14 +261,25 @@ module.exports = function makeSearch(Battle) {
 		}).filter(Boolean);
 		if (!bases.length) return { error: 'no world' };
 		const depth = sc.depth || 3, R = sc.rollouts || 2, temp = sc.temp || 0.12;
+		const budget = sc.budgetMs || 4000;   // 한 결정에 쓰는 최대 시간
+		const tStart = Date.now();
 		const out = [];
+		// 같은 난수 비교: 모든 행동이 (세계 k, 굴림 r) 마다 같은 씨앗을 쓴다
+		const seeds = [];
+		for (let k = 0; k < bases.length; k++) {
+			seeds.push([]);
+			for (let r = 0; r < R; r++) seeds[k].push([1 + Math.floor(rng() * 65535), 1 + Math.floor(rng() * 65535), 1 + Math.floor(rng() * 65535), 1 + Math.floor(rng() * 65535)]);
+		}
 		for (const opt of sc.options) {
 			let sum = 0, sq = 0, n = 0, bad = 0;
 			const isEval = opt === null;
-			for (const base of bases) {
+			for (let k = 0; k < bases.length; k++) {
+				const base = bases[k];
 				for (let r = 0; r < R; r++) {
+					if (n > 0 && Date.now() - tStart > budget * (out.length + 1) / sc.options.length) break;
 					const c = Battle.fromJSON(base.toJSON());
-					c.resetRNG([Math.floor(rng() * 65536), Math.floor(rng() * 65536), Math.floor(rng() * 65536), Math.floor(rng() * 65536)]);
+					c.resetRNG(seeds[k][r]);
+					const prng = mulberry(seeds[k][r][0] * 65536 + seeds[k][r][1]);
 					c.log = []; c.sentLogPos = 0;
 					const startTurn = c.turn;
 					if (!isEval) {
@@ -234,7 +287,7 @@ module.exports = function makeSearch(Battle) {
 						const oppReq = oppSide.activeRequest;
 						const ok = c.choose(me, opt);
 						if (!ok) { bad++; continue; }
-						if (oppReq && !oppReq.wait) step(c, oppSide.id, rolloutChoice(c, oppSide, rng, temp) || 'default');
+						if (oppReq && !oppReq.wait) step(c, oppSide.id, rolloutChoice(c, oppSide, prng, temp) || 'default');
 					}
 					let guard = 0;
 					while (!c.ended && c.turn - startTurn < depth && guard++ < depth * 4) {
@@ -242,13 +295,13 @@ module.exports = function makeSearch(Battle) {
 						for (const s of c.sides) {
 							const rq = s.activeRequest;
 							if (!rq || rq.wait) continue;
-							step(c, s.id, rolloutChoice(c, s, rng, temp) || 'default');
+							step(c, s.id, rolloutChoice(c, s, prng, temp) || 'default');
 							moved = true;
 							if (c.ended) break;
 						}
 						if (!moved) break;
 					}
-					const v = leafValue(c, me);
+					const v = leafValue(c, me, sc.leaf || 'mix');
 					sum += v; sq += v * v; n++;
 				}
 			}

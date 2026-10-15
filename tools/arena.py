@@ -27,7 +27,7 @@ NAMES = {**BASELINES, "search": "수읽기(탐색) AI", "model": "학습 모델 
 def make(name, dex, seed, gt, opts):
     if name == "search":
         from engine.search import SearchPolicy
-        return SearchPolicy(dex, seed=seed, worlds=opts.worlds, rollouts=opts.rollouts, depth=opts.depth)
+        return SearchPolicy(dex, seed=seed, worlds=opts.worlds, rollouts=opts.rollouts, depth=opts.depth, prior=opts.prior, leaf=opts.leaf)
     if name == "model":
         m = M.load(gt)
         if m is None:
@@ -54,7 +54,7 @@ def match(dex, gt, a, b, n, seed, opts):
     return {"me": a, "vs": b, "gameType": gt, "wins": wins, "played": played,
             "winrate": round(wins / played, 3) if played else 0, "avgTurns": round(turns / max(1, played), 1),
             "seconds": round(time.time() - t0), "when": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "settings": {"worlds": opts.worlds, "rollouts": opts.rollouts, "depth": opts.depth}}
+            "settings": {"worlds": opts.worlds, "rollouts": opts.rollouts, "depth": opts.depth, "prior": opts.prior, "leaf": opts.leaf}}
 
 
 def save(results):
@@ -80,8 +80,10 @@ def main():
     ap.add_argument("--type", default="singles", choices=["singles", "doubles", "both"])
     ap.add_argument("--games", type=int, default=40)
     ap.add_argument("--seed", type=int, default=31337)
-    ap.add_argument("--worlds", type=int, default=6)
-    ap.add_argument("--rollouts", type=int, default=2)
+    ap.add_argument("--worlds", type=int, default=8)
+    ap.add_argument("--rollouts", type=int, default=4)
+    ap.add_argument("--prior", type=float, default=0.08)
+    ap.add_argument("--leaf", default="mix", choices=["mix", "race", "material"])
     ap.add_argument("--depth", type=int, default=3)
     a = ap.parse_args()
     dex = Dex()

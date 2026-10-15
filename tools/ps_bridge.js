@@ -118,6 +118,7 @@ function handle(msg) {
 		return { id: msg.id, ended: true };
 	case 'search': {
 		const t0 = Date.now();
+		if (process.env.SEARCH_DUMP) require('fs').writeFileSync(process.env.SEARCH_DUMP, JSON.stringify(msg));
 		const r = searcher.search(msg);
 		r.ms = Date.now() - t0;
 		return r;

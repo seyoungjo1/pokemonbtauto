@@ -37,13 +37,15 @@ SIDE_KEYS = ("reflect", "lightscreen", "auroraveil", "tailwind", "stealthrock", 
 class SearchPolicy:
     name = "search"
 
-    def __init__(self, dex: Dex, worlds=6, rollouts=2, depth=3, top_n=12, seed=None, bridge: Bridge | None = None,
-                 temperature=0.02):
+    def __init__(self, dex: Dex, worlds=8, rollouts=4, depth=3, top_n=12, seed=None, bridge: Bridge | None = None,
+                 temperature=0.02, prior=0.08, leaf="mix"):
         self.dex = dex
         self.K, self.R, self.D, self.top_n = worlds, rollouts, depth, top_n
         self.rng = random.Random(seed)
         self.seed = seed or 1
         self.T = temperature
+        self.prior = prior
+        self.leaf = leaf
         self.teacher = HeuristicPolicy(dex, temperature=0.12, seed=seed)
         self._bridge = bridge
         self.last = None
@@ -158,6 +160,7 @@ class SearchPolicy:
                       "gravity": "gravity" in snap["pseudo"]},
             "sides": sc_sides, "megaUsed": snap["megaUsed"], "turn": snap["turn"],
             "options": options, "rollouts": self.R, "depth": self.D, "seed": self.rng.randrange(1, 2 ** 30),
+            "leaf": self.leaf,
             "worlds": [{"packed": pack(ws), "state": wst} for ws, wst in worlds],
         }
         sc[me] = {"packed": pack(my_sets), "state": my_states}
@@ -197,11 +200,14 @@ class SearchPolicy:
             return self.teacher.choose(view, req, options)
         if not values:
             return self.teacher.choose(view, req, options)
+        # 선생님 판단을 사전확률로 섞는다 (알파고의 정책망 사전확률처럼): 값 + prior × 선생님 확률
         mx_t = max(teacher)
+        ex_t = [math.exp((t - mx_t) / 0.12) for t in teacher]
+        pt = [e / sum(ex_t) for e in ex_t]
         score = []
         for i in range(len(options)):
             if i in values:
-                score.append(values[i] + 0.002 * (teacher[i] - mx_t))
+                score.append(values[i] + self.prior * pt[i])
             else:
                 score.append(-1.0)
         m = max(score)

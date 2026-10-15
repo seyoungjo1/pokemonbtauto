@@ -14,5 +14,135 @@
    "rollouts": 2,
    "depth": 3
   }
+ },
+ {
+  "me": "search",
+  "vs": "max_damage",
+  "gameType": "singles",
+  "wins": 9,
+  "played": 40,
+  "winrate": 0.225,
+  "avgTurns": 13.4,
+  "seconds": 213,
+  "when": "2026-10-15T06:14:03+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "search",
+  "vs": "heuristic",
+  "gameType": "singles",
+  "wins": 10,
+  "played": 40,
+  "winrate": 0.25,
+  "avgTurns": 11.8,
+  "seconds": 206,
+  "when": "2026-10-15T06:17:29+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "heuristic",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 32,
+  "played": 40,
+  "winrate": 0.8,
+  "avgTurns": 10.5,
+  "seconds": 6,
+  "when": "2026-10-15T06:17:35+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "heuristic",
+  "vs": "max_damage",
+  "gameType": "singles",
+  "wins": 24,
+  "played": 40,
+  "winrate": 0.6,
+  "avgTurns": 7.9,
+  "seconds": 5,
+  "when": "2026-10-15T06:17:39+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "heuristic",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 32,
+  "played": 40,
+  "winrate": 0.8,
+  "avgTurns": 10.5,
+  "seconds": 6,
+  "when": "2026-10-15T06:24:40+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "heuristic",
+  "vs": "max_damage",
+  "gameType": "singles",
+  "wins": 24,
+  "played": 40,
+  "winrate": 0.6,
+  "avgTurns": 7.9,
+  "seconds": 5,
+  "when": "2026-10-15T06:24:45+00:00",
+  "settings": {
+   "worlds": 6,
+   "rollouts": 2,
+   "depth": 3
+  }
+ },
+ {
+  "me": "search",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 27,
+  "played": 40,
+  "winrate": 0.675,
+  "avgTurns": 22.0,
+  "seconds": 822,
+  "when": "2026-10-15T06:39:00+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08
+  }
+ },
+ {
+  "me": "search",
+  "vs": "heuristic",
+  "gameType": "singles",
+  "wins": 17,
+  "played": 40,
+  "winrate": 0.425,
+  "avgTurns": 15.3,
+  "seconds": 596,
+  "when": "2026-10-15T06:48:56+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08
+  }
  }
 ]
