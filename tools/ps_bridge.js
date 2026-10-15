@@ -123,6 +123,8 @@ function handle(msg) {
 		r.ms = Date.now() - t0;
 		return r;
 	}
+	case 'matrix':
+		return searcher.matrix(msg);
 	case 'pack':
 		return { packed: Teams.pack(msg.team) };
 	default:

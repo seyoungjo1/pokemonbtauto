@@ -16,8 +16,8 @@ module.exports = function makeSearch(Battle) {
 		const b = new Battle({ formatid: fmt, seed });
 		const sides = { p1: sc.p1, p2: sc.p2 };
 		sides[sc.oppSide] = world;
-		b.setPlayer('p1', { team: sides.p1.packed });
-		b.setPlayer('p2', { team: sides.p2.packed });
+		b.setPlayer('p1', { name: 'p1', team: sides.p1.packed });
+		b.setPlayer('p2', { name: 'p2', team: sides.p2.packed });
 		b.choose('p1', 'team ' + range(sides.p1.state.length));
 		b.choose('p2', 'team ' + range(sides.p2.state.length));
 		const f = b.field;
@@ -311,5 +311,61 @@ module.exports = function makeSearch(Battle) {
 		return { results: out, worlds: bases.length };
 	}
 
-	return { search, build, rolloutChoice };
+	// ---------------------------------------------------------------- 선출 승률표
+	// sc: {format, A:{packed}, B:{worlds:[packed...]}, ordersA:["123",...], ordersB:[...], games, temp, seed, budgetMs}
+	// 각 칸: A 가 ordersA[i] 로, B 가 ordersB[j] 로 선출해 끝까지 대전한 A 의 승률.
+	function playout(format, packedA, packedB, orderA, orderB, rng, temp, seed) {
+		const b = new Battle({ formatid: format, seed });
+		b.setPlayer('p1', { name: 'p1', team: packedA });
+		b.setPlayer('p2', { name: 'p2', team: packedB });
+		b.choose('p1', 'team ' + orderA);
+		b.choose('p2', 'team ' + orderB);
+		b.log = []; b.sentLogPos = 0;
+		let guard = 0;
+		while (!b.ended && guard++ < 300) {
+			let moved = false;
+			for (const s of b.sides) {
+				const r = s.activeRequest;
+				if (!r || r.wait) continue;
+				const c = rolloutChoice(b, s, rng, temp) || 'default';
+				if (!b.choose(s.id, c)) b.choose(s.id, 'default');
+				b.log = []; b.sentLogPos = 0;
+				moved = true;
+				if (b.ended) break;
+			}
+			if (!moved) break;
+		}
+		return { winner: b.winner === 'p1' ? 1 : b.winner === 'p2' ? 0 : 0.5, turns: b.turn };
+	}
+
+	function matrix(sc) {
+		const rng = mulberry(sc.seed || 1);
+		const temp = sc.temp || 0.12;
+		const G = sc.games || 4;
+		const worlds = sc.B.worlds;
+		const t0 = Date.now();
+		const budget = sc.budgetMs || 60000;
+		const M = [], N = [];
+		let played = 0, turns = 0;
+		for (let i = 0; i < sc.ordersA.length; i++) {
+			M.push([]); N.push([]);
+			for (let j = 0; j < sc.ordersB.length; j++) {
+				let w = 0, n = 0;
+				for (let g = 0; g < G; g++) {
+					if (Date.now() - t0 > budget && n > 0) break;
+					const world = worlds[(i * 7 + j * 3 + g) % worlds.length];
+					const seed = [1 + ((i * 131 + j * 17 + g * 7 + (sc.seed || 1)) % 65000), 2 + g, 3 + i, 4 + j];
+					try {
+						const r = playout(sc.format, sc.A.packed, world, sc.ordersA[i], sc.ordersB[j], rng, temp, seed);
+						w += r.winner; n++; turns += r.turns;
+					} catch (e) { /* 깨진 판은 건너뜀 */ }
+				}
+				played += n;
+				M[i].push(n ? w / n : 0.5); N[i].push(n);
+			}
+		}
+		return { M, N, played, avgTurns: played ? turns / played : 0, ms: Date.now() - t0 };
+	}
+
+	return { search, build, rolloutChoice, matrix, playout };
 };

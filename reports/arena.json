@@ -144,5 +144,23 @@
    "depth": 3,
    "prior": 0.08
   }
+ },
+ {
+  "me": "search",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 28,
+  "played": 40,
+  "winrate": 0.7,
+  "avgTurns": 22.5,
+  "seconds": 838,
+  "when": "2026-10-15T07:07:42+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
  }
 ]
