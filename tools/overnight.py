@@ -138,7 +138,12 @@ def train(gt, log, max_games, epochs, replay_share=0.3, warm=True):
     from engine import nets, nets_torch, selfplay as SP
     from engine.dex import Dex
     dex = Dex()
-    data = nets.build_listwise(mixed_games(gt, max_games, replay_share, log), dex, gt, max_games=max_games, log=log)
+    # 정책 정답: 수읽기·사람의 결정 (선생님 AI 결정은 수읽기 결정이 모자랄 때만)
+    data = nets.build_listwise(mixed_games(gt, max_games, replay_share, log), dex, gt, max_games=max_games, log=log,
+                               teachers=("search", "human"))
+    if len(data["S"]) < 2000:
+        log(f"  수읽기·사람 결정이 {len(data['S'])}개뿐이라 선생님 AI 결정도 씁니다")
+        data = nets.build_listwise(mixed_games(gt, max_games, replay_share, log), dex, gt, max_games=max_games, log=log)
     if len(data["S"]) < 200:
         log("  학습할 결정이 너무 적어 건너뜀")
         return None

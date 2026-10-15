@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from .belief import OppBelief
 from .damage import Ctx, calc, ko_chance, percent_range
+from .teamgen import normalize_set
 from .dex import Dex, to_id
 from .mon import Mon
 from . import features as F
@@ -35,7 +36,7 @@ def to_snapshot(dex: Dex, st: dict):
     me_views, side_req = [], []
     order = list(brought) + [i for i in range(len(team)) if i not in brought]
     for idx in order:
-        s = team[idx]
+        s = normalize_set(dex, team[idx]) if team[idx].get("species") in dex.species else team[idx]
         sp = dex.species.get(s["species"])
         if not sp:
             continue
@@ -44,7 +45,7 @@ def to_snapshot(dex: Dex, st: dict):
         if cur.get("mega") and s.get("item"):
             mg = dex.mega_for(s["species"], s["item"])
             species = mg or species
-        name = sp["name"]
+        name = dex.ident_name(s["species"])   # 쇼다운이 부르는 이름과 같게 (리전폼·메가는 앞부분만)
         hp_pct = float(cur.get("hpPct", 100))
         mon = Mon(species=s["species"], ability=s.get("ability", ""), item=s.get("item", ""),
                   nature=s.get("nature", "serious"), sp=s.get("sp") or {}, moves=s.get("moves") or []).setup(dex)
@@ -79,7 +80,7 @@ def to_snapshot(dex: Dex, st: dict):
         if not (o.get("seen") or o.get("slot") or fainted or o.get("moves")):
             continue
         opp_views.append({
-            "name": dex.species[sid]["name"], "species": sid, "hpPct": 0.0 if fainted else hp_pct,
+            "name": dex.ident_name(sid), "species": sid, "hpPct": 0.0 if fainted else hp_pct,
             "status": o.get("status", ""), "fainted": fainted, "boosts": o.get("boosts") or {},
             "volatiles": o.get("volatiles") or [], "slot": o.get("slot") if not fainted else None,
             "moves": [dex.find("moves", m) for m in o.get("moves") or [] if dex.find("moves", m)],
