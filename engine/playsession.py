@@ -64,6 +64,11 @@ class PlaySession:
         self.me, self.ai_side = "p1", "p2"
         self.ai_name = ai
         self.ai = make_ai(ai, dex, game_type, seed=self.seed, bridge=self.br)
+        if ai in ("search", "net"):   # 학습된 AI 는 선출(선봉 포함)도 선출망으로
+            from . import bringnet as BN
+            bnet = BN.load(game_type)
+            if bnet is not None:
+                self.ai = BN.BringPolicy(dex, self.ai, bnet, game_type, seed=self.seed)
         self.ai.start(self.ai_side, self.teams[self.ai_side], dex)
         self.views = {s: BattleView(s) for s in ("p1", "p2")}
         self.pending = {"p1": None, "p2": None}

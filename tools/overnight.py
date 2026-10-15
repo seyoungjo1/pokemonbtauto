@@ -67,9 +67,15 @@ def worker(args):
             pass
     rng = random.Random(seed)
 
+    from engine import bringnet as BN
+    bnet = BN.load(gt)
+
     def me(s):
-        return SearchPolicy(dex, seed=s, worlds=settings["worlds"], rollouts=settings["rollouts"],
-                            depth=settings["depth"], net=net)
+        p = SearchPolicy(dex, seed=s, worlds=settings["worlds"], rollouts=settings["rollouts"],
+                         depth=settings["depth"], net=net)
+        if bnet is not None:   # 선출(선봉 포함)은 선출망 + 균형해, 15% 탐험
+            p = BN.BringPolicy(dex, p, bnet, gt, explore=0.15, seed=s)
+        return p
 
     def opp(s):
         pool = [("search", 0.3), ("net", 0.15 if net else 0), ("heuristic", 0.2), ("max_damage", 0.1),
@@ -208,6 +214,53 @@ def evaluate(gt, cand_path, n, log):
     return league
 
 
+# ======================================================================== 선출망 (선봉 포함)
+def train_bring(gt, log, max_games=8000, eval_games=200):
+    """모든 대전 기록의 (내 선출, 상대 선출, 승패)로 선출망 학습 → 지금 선출망과 선출만 다르게 대결 → 52% 이상이면 교체."""
+    import numpy as np
+    from engine import bringnet as BN, selfplay as SP
+    from engine.dex import Dex
+    from engine.policies import HeuristicPolicy
+    from tools.fetch_replays import replay_files
+    dex = Dex()
+    files = sorted(glob.glob(str(GAMES / "**" / f"games_{gt}_*.jsonl.gz"), recursive=True), key=os.path.getmtime)[::-1]
+    Fa, Fb, Y, G = BN.build_data(SP.iter_games(replay_files(gt) + files), dex, gt, max_games=max_games, log=log)
+    if len(Y) < 400:
+        log(f"  선출망: 표본 {len(Y)}개뿐이라 건너뜀")
+        return None
+    games = np.unique(G)
+    rng = np.random.default_rng(0)
+    rng.shuffle(games)
+    vg = set(games[:max(1, len(games) // 6)].tolist())
+    va = np.array([g in vg for g in G])
+    net = BN.BringNet()
+    net.fit(Fa[~va], Fb[~va], Y[~va], epochs=40, val=(Fa[va], Fb[va], Y[va]), log=None)
+    m = net.evaluate(Fa[va], Fb[va], Y[va])
+    log(f"  선출망 검증: 승패 예측 {m['acc']:.1%} · 손실 {m['loss']:.4f} (기준 {m['baseline']:.4f}) · 표본 {len(Y)}")
+    cur = BN.load(gt)
+
+    def fac(g):
+        a = BN.BringPolicy(dex, HeuristicPolicy(dex, seed=g), net, gt, seed=g)
+        a.name = "bring_new"
+        b = BN.BringPolicy(dex, HeuristicPolicy(dex, seed=g + 5000), cur, gt, seed=g + 1) if cur else HeuristicPolicy(dex, seed=g + 5000)
+        return {"p1": a, "p2": b} if g % 2 == 0 else {"p1": b, "p2": a}
+    p = SP.run(eval_games, gt, out_dir=ROOT / "userdata" / "arena", seed=8800, policy_factory=fac, log=lambda *x: None)
+    w = n = 0
+    for g in SP.iter_games([p]):
+        if g["winner"]:
+            me_ = "p1" if g["policies"]["p1"] == "bring_new" else "p2"
+            n += 1
+            w += g["winner"] == me_
+    p.unlink(missing_ok=True)
+    wr = w / max(1, n)
+    log(f"  새 선출망 vs {'지금 선출망' if cur else '규칙 선출'} (배틀은 같은 선생님 AI): {w}/{n} ({wr:.0%})")
+    if cur is None or wr >= 0.52:
+        net.info = {"metrics": m, "samples": int(len(Y)), "arena": {"wins": w, "played": n, "vs": "current" if cur else "rule"}}
+        net.save(BN.path_for(gt))
+        log("  → 선출망 교체")
+    return {"metrics": m, "winrate": wr, "kept": cur is None or wr >= 0.52}
+
+
 # ======================================================================== 파티 최적화 (몇 걸음)
 def team_steps(gt, steps, log, st):
     from engine.dex import Dex
@@ -314,6 +367,12 @@ def main():
             st["progress"].append({"iter": it, "when": now(), "gameType": gt, "games": n_games,
                                    "league": {k: {"winrate": v["winrate"], "played": v["played"]} for k, v in league.items()},
                                    "kept": keep})
+            try:
+                rb = train_bring(gt, log)
+                if rb:
+                    st["progress"][-1]["bring"] = {"acc": round(rb["metrics"]["acc"], 3), "winrate": round(rb["winrate"], 3), "kept": rb["kept"]}
+            except Exception as e:
+                log(f"  선출망 학습 오류: {type(e).__name__}: {e}")
             if a.team_steps:
                 try:
                     team_steps(gt, a.team_steps, log, st)

@@ -305,6 +305,20 @@ $('#bringBtn').addEventListener('click', async () => {
   const r = await api('/api/bring', { team, oppPreview: opp, gameType: S.gt });
   const lead = S.gt === 'doubles' ? 2 : 1;
   const res = $('#bringRes'); res.innerHTML = '';
+  if (r.net) {
+    const nn = r.net;
+    res.append(h('div', { class: 'small', style: 'padding:10px 14px 4px' }, h('b', {}, '학습된 선출망'),
+      ` — 내 선출(선봉 포함) × 상대 선출 ${nn.pairs}가지 전부의 승률을 예측해 균형해로 고름 · 예상 승률 ${pct(nn.value)}`,
+      nn.info ? h('span', { class: 'muted' }, ` (검증: 규칙 선출 상대 ${nn.info.vsRule ? nn.info.vsRule.wins + '/' + nn.info.vsRule.played : ''})`) : ''));
+    nn.rows.forEach((c, k) => res.append(h('div', { class: 'combo' },
+      h('b', { class: 'muted' }, k + 1), h('div', { class: 'imgs' }, ...c.order.map((i, j) => h('img', { class: j < lead ? 'lead' : '', src: '/sprite/' + team[i].species }))),
+      h('div', { class: 'col', style: 'flex:1; gap:2px' }, h('b', {}, c.names.join(' · ')),
+        h('span', { class: 'small muted' }, `균형해 확률 ${pct(c.prob)} · 상대 예상 선출 상대로 ${pct(c.value)} · 가장 불리할 때 ${pct(c.worst)} (상대 ${c.worstVs.join('·')})`)),
+      h('span', { class: 'pill' }, pct(c.value)),
+      h('button', { class: 'btn sm primary', onclick: () => startBattle(c.order, team, opp) }, '이 선출로 대전'))));
+    res.append(h('div', { class: 'small muted', style: 'padding:4px 14px' }, '상대가 낼 것 같은 선출: ' + nn.oppLikely.map(o => `${o.names.join('·')} ${pct(o.prob)}`).join(' / ')),
+      h('div', { class: 'small', style: 'padding:10px 14px 4px' }, h('b', {}, '빠른 상성 추천'), h('span', { class: 'muted' }, ' (1:1 상성 규칙)')));
+  }
   r.combos.forEach((c, k) => res.append(h('div', { class: 'combo' },
     h('b', { class: 'muted' }, k + 1), h('div', { class: 'imgs' }, ...c.order.map((i, j) => h('img', { class: j < lead ? 'lead' : '', src: '/sprite/' + team[i].species }))),
     h('div', { class: 'col', style: 'flex:1; gap:2px' }, h('b', {}, c.names.join(' · ')), h('span', { class: 'small muted' }, c.why)),

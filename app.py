@@ -391,7 +391,34 @@ def api_advise():
 @app.route("/api/bring", methods=["POST"])
 def api_bring():
     b = request.get_json(force=True) or {}
-    return ok(**builder.recommend_bring(dex(), b.get("team") or [], b.get("oppPreview") or [], b.get("gameType", "singles")))
+    gt = b.get("gameType", "singles")
+    team = [s for s in (b.get("team") or []) if s.get("species") in dex().species]
+    opp = [dex().find("species", x) for x in (b.get("oppPreview") or []) if dex().find("species", x)]
+    out = builder.recommend_bring(dex(), team, opp, gt)
+    # 학습된 선출망: 내 선출(선봉 포함) × 상대 선출 전부의 예측 승률표 → 균형해
+    import numpy as np
+    from engine import bringnet as BN
+    net = BN.load(gt)
+    if net is not None and len(team) >= (4 if gt == "doubles" else 3) and len(opp) >= 3:
+        try:
+            mu, M, p, q, v = BN.decide(net, dex(), team, opp, gt)
+            ko = lambda s: dex().species[s["species"]]["ko"]
+            rows = []
+            for i in np.argsort(-p)[:6]:
+                if p[i] < 0.01 and rows:
+                    break
+                o = mu.oa[int(i)]
+                worst = int(np.argmin(M[i]))
+                rows.append({"order": [int(x) for x in o], "names": [ko(team[x]) for x in o], "prob": round(float(p[i]), 3),
+                             "value": round(float(M[i] @ q), 3), "worst": round(float(M[i].min()), 3),
+                             "worstVs": [dex().species[opp[x]]["ko"] for x in mu.ob[worst]]})
+            likely = [{"names": [dex().species[opp[x]]["ko"] for x in mu.ob[int(j)]], "prob": round(float(q[j]), 3)}
+                      for j in np.argsort(-q)[:3]]
+            out["net"] = {"value": round(v, 3), "rows": rows, "oppLikely": likely, "pairs": int(M.size),
+                          "info": net.info.get("arena")}
+        except Exception as e:
+            out["netError"] = f"{type(e).__name__}: {e}"
+    return ok(**out)
 
 
 @app.route("/api/build/<what>", methods=["POST"])
