@@ -64,7 +64,7 @@ class Vocab:
 
     def _dim_move(self):
         return (18 + 3 + 3 + 7 + len(MOVE_FLAGS) + len(self.mv_cb) + (1 + len(STATUSES) + 3) + 7 + 1 + 2 + 18
-                + 6 + len(HAZARD_SC) + len(PSEUDO) + 4 + 3)
+                + 6 + len(HAZARD_SC) + len(PSEUDO) + 4 + 3 + 9)
 
     def to_json(self):
         return {"ab_cb": self.ab_cb, "it_cb": self.it_cb, "mv_cb": self.mv_cb}
@@ -184,6 +184,11 @@ def move_token(dex: Dex, vocab: Vocab, mid: str, atk: Mon, mult) -> np.ndarray:
     v += [1.0 if w == x else 0.0 for x in ("rain", "sun", "sand", "snow")]
     v += [1.0 if mid in RECOVERY else 0.0, 1.0 if mo.get("terrain") else 0.0,
           float(mo.get("multihit") if isinstance(mo.get("multihit"), (int, float)) else (3 if mo.get("multihit") else 1)) / 3.0]
+    # 필중(회피 무시) · 급소율↑/확정급소 · 일격기 · 방어 뚫기 · 특성 무시 · 방어 무시 · 얼음 녹임 · 잠든 채 사용 · 강제 교체
+    v += [1.0 if acc is True else 0.0, 1.0 if ((mo.get("critRatio") or 1) > 1 or mo.get("willCrit")) else 0.0,
+          1.0 if mo.get("ohko") else 0.0, 1.0 if mo.get("breaksProtect") else 0.0, 1.0 if mo.get("ignoreAbility") else 0.0,
+          1.0 if mo.get("ignoreDefensive") else 0.0, 1.0 if mo.get("thawsTarget") else 0.0, 1.0 if mo.get("sleepUsable") else 0.0,
+          1.0 if mo.get("forceSwitch") else 0.0]
     return np.array(v, np.float32)
 
 
