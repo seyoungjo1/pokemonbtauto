@@ -229,8 +229,11 @@ def check_features(dex):
           "moves": ["electroshot", "flashcannon", "dracometeor", "bodypress"]}
     g1 = montoken.weather_profile(dex, ar)["gain"]["rain"]
     g2 = montoken.weather_profile(dex, {**ar, "moves": ["flashcannon", "dracometeor", "bodypress", "thunderbolt"]})["gain"]["rain"]
-    ok = r.get("ok") and t["ok"] and g1 > 0.5 and g2 == 0
-    return {**r, "ok": bool(ok), "summary": f"{r.get('summary', '')} · 포켓몬 {t['summary']} · 날씨 이득(잔비+일렉트로빔 {g1:.2f})"}
+    from engine import benchmarks
+    be = benchmarks.validate(dex)
+    ok = r.get("ok") and t["ok"] and g1 > 0.5 and g2 == 0 and not be
+    return {**r, "ok": bool(ok), "errors": (r.get("errors") or []) + be,
+            "summary": f"{r.get('summary', '')} · 포켓몬 {t['summary']} · 날씨 이득(잔비+일렉트로빔 {g1:.2f}) · 벤치마크 팀 {len(benchmarks.SINGLES)}개 검증"}
 
 
 def check_sim():
