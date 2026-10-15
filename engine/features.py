@@ -332,6 +332,157 @@ def f_stats(x: FCtx):
     return out
 
 
+
+# ======================================================================== 상태 변수 (2차 추가: 2026-10-15)
+TYPES18 = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying",
+           "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]
+PRIORITY_OK = lambda mv: (mv.get("priority", 0) or 0) > 0 and mv.get("category") != "Status"
+
+
+@group("s_types18", "타입 구성", "state", 36, "2026-10-15", "내·상대 첫 활성 포켓몬의 타입 (18타입 원-핫)")
+def f_types18(x: FCtx):
+    out = []
+    for act in (x.my_active(), x.opp_active()):
+        sp = x.dex.species.get(act[0]["species"]) if act else None
+        ts = sp["types"] if sp else []
+        out += [float(t in ts) for t in TYPES18]
+    return out
+
+
+@group("s_bench2", "대기 포켓몬 상성", "state", 14, "2026-10-15",
+       "내 대기 포켓몬(최대 2) vs 상대 활성: 주는·받는 데미지와 처치 확률, 스피드 / 상대의 드러난 대기 vs 내 활성")
+def f_bench2(x: FCtx):
+    out = []
+    oa = [x.mon(m, False) for m in x.opp_active()]
+    o0 = oa[0] if oa else None
+    bench = []
+    for k, p in enumerate(x.req.get("side") or [], 1):
+        if p.get("active") or p["condition"].endswith("fnt"):
+            continue
+        mv, m = x.bench_mon_by_req(k)
+        if m is not None:
+            bench.append(m)
+    for m in _pad(bench, 2, None):
+        if m is None or o0 is None:
+            out += [0.0] * 5
+            continue
+        g, t = x.best(m, o0, 0), x.best(o0, m, 1)
+        out += [g[0], g[1], t[0], t[1], float(x.speed(m, 0) > x.speed(o0, 1))]
+    ma = [x.mon(m, True) for m in x.my_active()]
+    m0 = ma[0] if ma else None
+    ob = [m for m in x.opp_views() if m.get("revealed") and not m["fainted"] and not m["slot"]]
+    for o in _pad(ob, 2, None):
+        om = x.mon(o, False) if o else None
+        if om is None or m0 is None:
+            out += [0.0] * 2
+            continue
+        out += [x.best(om, m0, 1)[0], x.best(m0, om, 0)[0]]
+    return out
+
+
+@group("s_threat", "위협 상세", "state", 6, "2026-10-15", "상대 활성이 내 각 포켓몬을 / 내 활성이 상대 각 포켓몬을 쓰러뜨릴 확률 (높은 순)")
+def f_threat(x: FCtx):
+    oa = [x.mon(m, False) for m in x.opp_active()]
+    ma = [x.mon(m, True) for m in x.my_active()]
+    mine = [x.mon(m, True) for m in x.my_views() if not m["fainted"]]
+    opps = [x.mon(m, False) for m in x.opp_views() if m.get("revealed") and not m["fainted"]]
+    t1 = sorted((max((x.best(o, m, 1)[1] for o in oa if o), default=0) for m in mine if m), reverse=True)
+    t2 = sorted((max((x.best(m, o, 0)[1] for m in ma if m), default=0) for o in opps if o), reverse=True)
+    return _pad(t1, 3) + _pad(t2, 3)
+
+
+@group("s_priority", "선공기", "state", 3, "2026-10-15", "내 선공기로 상대 활성 마무리 확률, 상대 선공기로 내 활성이 쓰러질 확률, 상대가 선공기를 가졌을 확률")
+def f_priority(x: FCtx):
+    ma = [x.mon(m, True) for m in x.my_active()]
+    oav = x.opp_active()
+    oa = [x.mon(m, False) for m in oav]
+    mine_p = opp_p = has_p = 0.0
+    for m in ma:
+        if not m:
+            continue
+        for mid in m.moves:
+            mv = x.dex.moves.get(mid)
+            if mv and PRIORITY_OK(mv):
+                for o in oa:
+                    if o:
+                        mine_p = max(mine_p, x.c.exp_frac(m, o, mid, x.field, 0)[1])
+    for ov, o in zip(oav, oa):
+        if not o:
+            continue
+        probs = x.c._belief(ov["species"]).move_probs()
+        for mid, pr in probs.items():
+            mv = x.dex.moves.get(mid)
+            if mv and PRIORITY_OK(mv):
+                has_p = max(has_p, pr)
+                for m in ma:
+                    if m:
+                        opp_p = max(opp_p, pr * x.c.exp_frac(o, m, mid, x.field, 1)[1])
+    return [mine_p, opp_p, has_p]
+
+
+def _hazard_frac(x: FCtx, side_key: str, sp: dict) -> float:
+    sc = x.v["sideConds"].get(side_key, {})
+    f = 0.0
+    if "stealthrock" in sc:
+        eff = 1.0
+        for t in sp["types"]:
+            if x.dex.immune("Rock", t):
+                eff = 0
+            else:
+                eff *= 2 ** x.dex.effectiveness("Rock", t)
+        f += 0.125 * eff
+    if "spikes" in sc and "Flying" not in sp["types"]:
+        f += {1: 1 / 8, 2: 1 / 6, 3: 1 / 4}.get(sc["spikes"]["layers"], 0.25)
+    return f
+
+
+@group("s_hazard", "설치기 피해", "state", 4, "2026-10-15", "교체해 들어올 때 스텔스록·압정으로 받는 HP 비율 (내 대기 최대·평균, 상대 대기 최대·평균)")
+def f_hazard(x: FCtx):
+    out = []
+    for side, views in ((x.me, x.my_views()), (x.opp, x.opp_views())):
+        fr = [_hazard_frac(x, side, x.dex.species[m["species"]]) for m in views
+              if not m["fainted"] and not m["slot"] and m["species"] in x.dex.species]
+        out += [max(fr, default=0.0), (sum(fr) / len(fr)) if fr else 0.0]
+    return out
+
+
+VOLS = ["substitute", "taunt", "encore", "confusion", "leechseed"]
+
+
+@group("s_volatile", "휘발 상태", "state", 14, "2026-10-15", "내·상대 첫 활성의 대타출동·도발·앵콜·혼란·씨뿌리기, 직전 방어, 구애 고정")
+def f_volatile(x: FCtx):
+    from .policies import PROTECT
+    out = []
+    for act in (x.my_active(), x.opp_active()):
+        m = act[0] if act else {}
+        vol = set(m.get("volatiles") or [])
+        out += [float(v in vol) for v in VOLS]
+        out.append(float(m.get("lastMove") in PROTECT))
+        out.append(float(str(m.get("item") or "").startswith("choice") and bool(m.get("lastMove"))))
+    return out
+
+
+@group("s_items", "도구 상태", "state", 5, "2026-10-15", "상대 도구 미공개, 상대 기합의띠 가능성, 내·상대 도구 소모, 상대 구애스카프 가능성")
+def f_items(x: FCtx):
+    ma, oa = x.my_active(), x.opp_active()
+    o = oa[0] if oa else None
+    m = ma[0] if ma else None
+    unknown = float(o is not None and o.get("item") is None)
+    sash = scarf = 0.0
+    if o is not None and o.get("item") is None:
+        ip = x.c._belief(o["species"]).item_probs()
+        if o["hpPct"] >= 99.5:
+            sash = ip.get("focussash", 0.05)
+        scarf = ip.get("choicescarf", 0.05)
+    return [unknown, sash, float(m is not None and m.get("item") == ""), float(o is not None and o.get("item") == ""), scarf]
+
+
+@group("s_tempo", "턴 흐름", "state", 4, "2026-10-15", "내·상대 활성이 나와 있던 턴 수, 쓰러진 수")
+def f_tempo(x: FCtx):
+    ma, oa = x.my_active(), x.opp_active()
+    return [min(5, (ma[0].get("turnsOut") or 0) if ma else 0) / 5, min(5, (oa[0].get("turnsOut") or 0) if oa else 0) / 5,
+            x.v["fainted"].get(x.me, 0) / x.pick, x.v["fainted"].get(x.opp, 0) / x.pick]
+
 # ======================================================================== 선택지 변수 (자리마다)
 PART_GROUPS = []
 
@@ -471,6 +622,71 @@ def p_teacher(x, slot, p):
     if p["kind"] in ("pass", "team") or "raw" not in p:
         return [0.0]
     return [max(-3.0, min(3.0, x.teacher_part(slot, p["raw"])))]
+
+
+@part_group("o_secondary", "기술 부가효과", 8, "2026-10-15", "추가효과 확률, 상태이상, 내 능력치 하락, 상대 능력치 하락, 흡수, 반동, 풀죽음, 회복")
+def p_secondary(x, slot, p):
+    if p["kind"] != "move":
+        return [0.0] * 8
+    mv = _move_of(x, slot, p["j"])
+    if not mv:
+        return [0.0] * 8
+    secs = mv.get("secondaries") or ([mv["secondary"]] if mv.get("secondary") else [])
+    chance = max((s_.get("chance", 100) or 0 for s_ in secs), default=0) / 100
+    status = float(bool(mv.get("status")) or any(s_.get("status") for s_ in secs))
+    selfb = (mv.get("self") or {}).get("boosts") or {}
+    self_drop = -sum(v for v in selfb.values() if v < 0) / 3
+    tgt_drop = max((-sum(v for v in (s_.get("boosts") or {}).values() if v < 0) for s_ in secs), default=0) / 2
+    flinch = max(((s_.get("chance", 0) or 0) / 100 for s_ in secs if s_.get("volatileStatus") == "flinch"), default=0)
+    drain = (mv["drain"][0] / mv["drain"][1]) if mv.get("drain") else 0.0
+    recoil = (mv["recoil"][0] / mv["recoil"][1]) if mv.get("recoil") else 0.0
+    heal = (mv["heal"][0] / mv["heal"][1]) if mv.get("heal") else 0.0
+    return [chance, status, self_drop, tgt_drop, drain, recoil, flinch, heal]
+
+
+@part_group("o_switch2", "교체 위험", 5, "2026-10-15", "교체해 들어갈 포켓몬: 설치기 피해, 상대에게 쓰러질 확률, 상대보다 빠른가, HP, 상대 드러난 기술을 반감 이하로 받는 비율")
+def p_switch2(x, slot, p):
+    if p["kind"] != "switch":
+        return [0.0] * 5
+    mv, m = x.bench_mon_by_req(p["k"])
+    oav = x.opp_active()
+    opps = [x.mon(o, False) for o in oav]
+    if m is None or not opps:
+        return [0.0] * 5
+    sp = x.dex.species[m.species]
+    haz = _hazard_frac(x, x.me, sp)
+    ko = max((x.best(o, m, 1)[1] for o in opps if o), default=0)
+    fast = float(x.speed(m, 0) > max((x.speed(o, 1) for o in opps if o), default=0))
+    rev = [mid for o in oav for mid in (o.get("moves") or []) if x.dex.moves.get(mid, {}).get("category") != "Status"]
+    resist = 0.0
+    if rev:
+        ok = 0
+        for mid in rev:
+            t = x.dex.moves[mid]["type"]
+            if any(x.dex.immune(t, d) for d in sp["types"]) or sum(x.dex.effectiveness(t, d) for d in sp["types"]) < 0:
+                ok += 1
+        resist = ok / len(rev)
+    return [haz, ko, fast, (mv or {}).get("hpPct", 100) / 100, resist]
+
+
+@part_group("o_target", "대상 정보", 4, "2026-10-15", "공격 대상의 HP, 대상이 내 포켓몬을 쓰러뜨릴 위협, 대상이 나보다 빠른가, 확정 처치인가")
+def p_target(x, slot, p):
+    if p["kind"] != "move":
+        return [0.0] * 4
+    mv = _move_of(x, slot, p["j"])
+    oav = x.opp_active()
+    act = x.my_active()
+    if not mv or mv["category"] == "Status" or not oav or slot >= len(act):
+        return [0.0] * 4
+    ti = (p["tgt"] - 1) if p.get("tgt") and p["tgt"] > 0 and p["tgt"] - 1 < len(oav) else 0
+    o = oav[ti]
+    om = x.mon(o, False)
+    me = x.mon(act[slot], True)
+    if om is None or me is None:
+        return [0.0] * 4
+    threat = max((x.best(om, x.mon(m, True), 1)[1] for m in act if x.mon(m, True)), default=0)
+    ko = x.c.exp_frac(me, om, mv["id"], x.field, 0)[1]
+    return [o["hpPct"] / 100, threat, float(x.speed(om, 1) > x.speed(me, 0)), float(ko >= 0.99)]
 
 
 PART_SIZE = sum(g.size for g in PART_GROUPS)

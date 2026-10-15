@@ -164,8 +164,15 @@ def _default_policies(dex, seed):
 
 
 def iter_games(paths):
+    """기록 파일들을 한 판씩. 아직 쓰는 중이거나 깨진 파일은 읽을 수 있는 데까지만."""
     for p in paths:
-        with gzip.open(p, "rt", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    yield json.loads(line)
+        try:
+            with gzip.open(p, "rt", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            yield json.loads(line)
+                        except json.JSONDecodeError:
+                            break
+        except (EOFError, OSError):
+            continue
