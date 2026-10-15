@@ -270,5 +270,41 @@
    "prior": 0.08,
    "leaf": "mix"
   }
+ },
+ {
+  "me": "search",
+  "vs": "heuristic",
+  "gameType": "singles",
+  "wins": 24,
+  "played": 40,
+  "winrate": 0.6,
+  "avgTurns": 10.3,
+  "seconds": 525,
+  "when": "2026-10-15T09:38:37+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
+ },
+ {
+  "me": "search",
+  "vs": "max_damage",
+  "gameType": "singles",
+  "wins": 28,
+  "played": 40,
+  "winrate": 0.7,
+  "avgTurns": 8.4,
+  "seconds": 425,
+  "when": "2026-10-15T09:45:41+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
  }
 ]
