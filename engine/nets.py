@@ -242,7 +242,8 @@ class PolicyValueNet:
             vl += -(y * math.log(max(v, 1e-6)) + (1 - y) * math.log(max(1 - v, 1e-6)))
             acc += float((v > 0.5) == (y > 0.5))
         n = max(1, len(idx))
-        return {"policyCE": ce / n, "top1": top1 / n, "valueLoss": vl / n, "valueAcc": acc / n, "n": int(n)}
+        return {"policyCE": float(ce / n), "top1": float(top1 / n), "valueLoss": float(vl / n),
+                "valueAcc": float(acc / n), "n": int(n)}
 
     # ---- 저장
     def save(self, path, meta, extra=None):

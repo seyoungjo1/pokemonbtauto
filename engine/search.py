@@ -38,7 +38,7 @@ class SearchPolicy:
     name = "search"
 
     def __init__(self, dex: Dex, worlds=8, rollouts=4, depth=3, top_n=12, seed=None, bridge: Bridge | None = None,
-                 temperature=0.02, prior=0.08, leaf="mix"):
+                 temperature=0.02, prior=0.08, leaf="mix", net=None):
         self.dex = dex
         self.K, self.R, self.D, self.top_n = worlds, rollouts, depth, top_n
         self.rng = random.Random(seed)
@@ -46,6 +46,8 @@ class SearchPolicy:
         self.T = temperature
         self.prior = prior
         self.leaf = leaf
+        self.net = net          # 학습된 정책망 (있으면 선생님 대신 사전확률·후보 추리기에 사용)
+        self._netpol = None
         self.teacher = HeuristicPolicy(dex, temperature=0.12, seed=seed)
         self._bridge = bridge
         self.last = None
@@ -174,11 +176,22 @@ class SearchPolicy:
         if req.get("teamPreview"):
             return self.teacher.choose(view, req, options)
         teacher = self.teacher._turn_scores(snap, req, options)
+        net_p = None
+        if self.net is not None:
+            try:
+                if self._netpol is None:
+                    from .nets import NetPolicy
+                    self._netpol = NetPolicy(self.dex, self.net, temperature=1.0)
+                    self._netpol.start(self.side, self.sets, self.dex)
+                net_p, _ = self._netpol.probs(view, req, options)
+            except Exception:
+                net_p = None
         my_sets, my_states, remap = self.my_side(snap, req)
         worlds = [self.world(snap) for _ in range(self.K)]
         cand = list(range(len(options)))
         if len(cand) > self.top_n:
-            cand = sorted(cand, key=lambda i: -teacher[i])[:self.top_n]
+            key = (lambda i: -net_p[i]) if net_p is not None else (lambda i: -teacher[i])
+            cand = sorted(cand, key=key)[:self.top_n]
         values = {}
         try:
             if req.get("forceSwitch"):
@@ -201,9 +214,12 @@ class SearchPolicy:
         if not values:
             return self.teacher.choose(view, req, options)
         # 선생님 판단을 사전확률로 섞는다 (알파고의 정책망 사전확률처럼): 값 + prior × 선생님 확률
-        mx_t = max(teacher)
-        ex_t = [math.exp((t - mx_t) / 0.12) for t in teacher]
-        pt = [e / sum(ex_t) for e in ex_t]
+        if net_p is not None:
+            pt = [float(x) for x in net_p]
+        else:
+            mx_t = max(teacher)
+            ex_t = [math.exp((t - mx_t) / 0.12) for t in teacher]
+            pt = [e / sum(ex_t) for e in ex_t]
         score = []
         for i in range(len(options)):
             if i in values:

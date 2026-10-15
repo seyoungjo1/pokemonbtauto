@@ -9,3 +9,4 @@ token.txt
 config.json
 userdata/
 cache/
+models/*_candidate.json
