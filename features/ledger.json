@@ -6,8 +6,19 @@
    "size": 10,
    "added": "2026-10-15",
    "desc": "내·상대 활성 HP, 살아있는 수, 팀 HP 합",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.05759,
+     "delta": 0.04701,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_status": {
    "ko": "상태이상",
@@ -16,7 +27,18 @@
    "added": "2026-10-15",
    "desc": "활성 포켓몬의 화상·마비·독·잠듦, 팀 상태이상 수",
    "status": "candidate",
-   "tests": []
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 1.99324,
+     "delta": -0.01734,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_boosts": {
    "ko": "랭크 변화",
@@ -24,8 +46,19 @@
    "size": 20,
    "added": "2026-10-15",
    "desc": "활성 포켓몬의 공격·방어·특공·특방·스피드 랭크",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.03326,
+     "delta": 0.02268,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_field": {
    "ko": "날씨·필드",
@@ -33,8 +66,19 @@
    "size": 12,
    "added": "2026-10-15",
    "desc": "날씨·필드 종류와 경과 턴, 트릭룸, 중력",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.02791,
+     "delta": 0.01733,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_side": {
    "ko": "진영 효과",
@@ -42,8 +86,19 @@
    "size": 16,
    "added": "2026-10-15",
    "desc": "벽·순풍·스텔스록·압정 등 (내/상대)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01956,
+     "delta": 0.00898,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_speed": {
    "ko": "스피드 비교",
@@ -51,8 +106,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "활성끼리 누가 먼저 움직이는가 (트릭룸·순풍·스카프·마비 반영)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.04293,
+     "delta": 0.03235,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_matchup": {
    "ko": "데미지 상성",
@@ -60,8 +126,19 @@
    "size": 8,
    "added": "2026-10-15",
    "desc": "데미지 엔진으로 계산한 내→상대, 상대→나 최대 기대 데미지와 처치 확률",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.0213,
+     "delta": 0.01072,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_bench": {
    "ko": "교체 후보",
@@ -69,8 +146,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "대기 중인 내 포켓몬의 최고 교체 상성, 상대 미공개 수",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.04596,
+     "delta": 0.03538,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_types": {
    "ko": "타입 상성",
@@ -78,8 +166,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "활성 포켓몬 자속 타입끼리의 상성 (log2)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.04702,
+     "delta": 0.03644,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_mega": {
    "ko": "메가진화",
@@ -87,8 +186,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "메가진화 사용 여부와 지금 가능한지",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.05294,
+     "delta": 0.04236,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_info": {
    "ko": "정보량",
@@ -96,8 +206,19 @@
    "size": 3,
    "added": "2026-10-15",
    "desc": "상대에 대해 드러난 기술·도구·특성 비율",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.04219,
+     "delta": 0.03161,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_turn": {
    "ko": "턴·결정 종류",
@@ -105,8 +226,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "턴 수, 선출/강제교체/일반 턴",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.05009,
+     "delta": 0.03951,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_stats": {
    "ko": "종족값",
@@ -114,8 +246,19 @@
    "size": 12,
    "added": "2026-10-15",
    "desc": "첫 번째 활성 포켓몬(나·상대)의 종족값",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.05199,
+     "delta": 0.0414,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_kind": {
    "ko": "행동 종류",
@@ -123,8 +266,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "기술/교체/메가진화/패스",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01611,
+     "delta": 0.00553,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_move": {
    "ko": "기술 기본 정보",
@@ -132,8 +286,19 @@
    "size": 10,
    "added": "2026-10-15",
    "desc": "위력·명중·우선도·분류·범위·자속·접촉·반동",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01826,
+     "delta": 0.00768,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_effect": {
    "ko": "기술 효과 계산",
@@ -141,8 +306,19 @@
    "size": 5,
    "added": "2026-10-15",
    "desc": "데미지 엔진: 대상 상성·기대 데미지·처치 확률·아군 공격·무효",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.0496,
+     "delta": 0.03902,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_status": {
    "ko": "변화기 종류",
@@ -150,8 +326,19 @@
    "size": 7,
    "added": "2026-10-15",
    "desc": "능력 올리기·회복·방어·상태이상·설치·벽·스피드 조절",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.03494,
+     "delta": 0.02436,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_switch": {
    "ko": "교체 상성",
@@ -159,8 +346,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "들어올 포켓몬이 받을/줄 데미지, HP, 스피드",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01736,
+     "delta": 0.00678,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_risk": {
    "ko": "행동 위험",
@@ -168,8 +366,19 @@
    "size": 3,
    "added": "2026-10-15",
    "desc": "행동하는 포켓몬이 먼저 맞고 쓰러질 위험",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01502,
+     "delta": 0.00444,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_preview": {
    "ko": "선출 조합",
@@ -177,8 +386,19 @@
    "size": 6,
    "added": "2026-10-15",
    "desc": "선출한 포켓몬들의 평균·선봉·최저 상성, 메가 포함, 스피드",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.07317,
+     "delta": 0.06259,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_types18": {
    "ko": "타입 구성",
@@ -186,8 +406,19 @@
    "size": 36,
    "added": "2026-10-15",
    "desc": "내·상대 첫 활성 포켓몬의 타입 (18타입 원-핫)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01853,
+     "delta": 0.00795,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_bench2": {
    "ko": "대기 포켓몬 상성",
@@ -195,8 +426,19 @@
    "size": 14,
    "added": "2026-10-15",
    "desc": "내 대기 포켓몬(최대 2) vs 상대 활성: 주는·받는 데미지와 처치 확률, 스피드 / 상대의 드러난 대기 vs 내 활성",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.06528,
+     "delta": 0.0547,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_threat": {
    "ko": "위협 상세",
@@ -204,8 +446,19 @@
    "size": 6,
    "added": "2026-10-15",
    "desc": "상대 활성이 내 각 포켓몬을 / 내 활성이 상대 각 포켓몬을 쓰러뜨릴 확률 (높은 순)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.02298,
+     "delta": 0.0124,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_priority": {
    "ko": "선공기",
@@ -213,8 +466,19 @@
    "size": 3,
    "added": "2026-10-15",
    "desc": "내 선공기로 상대 활성 마무리 확률, 상대 선공기로 내 활성이 쓰러질 확률, 상대가 선공기를 가졌을 확률",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.03933,
+     "delta": 0.02875,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_hazard": {
    "ko": "설치기 피해",
@@ -222,8 +486,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "교체해 들어올 때 스텔스록·압정으로 받는 HP 비율 (내 대기 최대·평균, 상대 대기 최대·평균)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.0388,
+     "delta": 0.02822,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_volatile": {
    "ko": "휘발 상태",
@@ -231,8 +506,19 @@
    "size": 14,
    "added": "2026-10-15",
    "desc": "내·상대 첫 활성의 대타출동·도발·앵콜·혼란·씨뿌리기, 직전 방어, 구애 고정",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.0383,
+     "delta": 0.02771,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_items": {
    "ko": "도구 상태",
@@ -240,8 +526,19 @@
    "size": 5,
    "added": "2026-10-15",
    "desc": "상대 도구 미공개, 상대 기합의띠 가능성, 내·상대 도구 소모, 상대 구애스카프 가능성",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.02866,
+     "delta": 0.01808,
+     "model": "policyvalue"
+    }
+   ]
   },
   "s_tempo": {
    "ko": "턴 흐름",
@@ -249,8 +546,19 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "내·상대 활성이 나와 있던 턴 수, 쓰러진 수",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.03422,
+     "delta": 0.02364,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_teacher": {
    "ko": "선생님 판단",
@@ -258,8 +566,19 @@
    "size": 1,
    "added": "2026-10-15",
    "desc": "데미지 엔진 기반 선생님 정책의 행동 점수 (알파고의 지도학습 정책 역할)",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.02656,
+     "delta": 0.01598,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_secondary": {
    "ko": "기술 부가효과",
@@ -267,8 +586,19 @@
    "size": 8,
    "added": "2026-10-15",
    "desc": "추가효과 확률, 상태이상, 내 능력치 하락, 상대 능력치 하락, 흡수, 반동, 풀죽음, 회복",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.02051,
+     "delta": 0.00993,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_switch2": {
    "ko": "교체 위험",
@@ -276,8 +606,19 @@
    "size": 5,
    "added": "2026-10-15",
    "desc": "교체해 들어갈 포켓몬: 설치기 피해, 상대에게 쓰러질 확률, 상대보다 빠른가, HP, 상대 드러난 기술을 반감 이하로 받는 비율",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.0156,
+     "delta": 0.00502,
+     "model": "policyvalue"
+    }
+   ]
   },
   "o_target": {
    "ko": "대상 정보",
@@ -285,10 +626,29 @@
    "size": 4,
    "added": "2026-10-15",
    "desc": "공격 대상의 HP, 대상이 내 포켓몬을 쓰러뜨릴 위협, 대상이 나보다 빠른가, 확정 처치인가",
-   "status": "candidate",
-   "tests": []
+   "status": "adopted",
+   "tests": [
+    {
+     "when": "2026-10-15T09:55:48+00:00",
+     "gameType": "singles",
+     "games": 451,
+     "decisions": 7315,
+     "loss_with": 2.01058,
+     "loss_without": 2.01814,
+     "delta": 0.00756,
+     "model": "policyvalue"
+    }
+   ]
   }
  },
  "suggestions": [],
- "history": []
+ "history": [
+  {
+   "when": "2026-10-15T09:55:48+00:00",
+   "gameType": "singles",
+   "baseline": 2.01058,
+   "games": 451,
+   "model": "policyvalue"
+  }
+ ]
 }
