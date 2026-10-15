@@ -162,5 +162,77 @@
    "prior": 0.08,
    "leaf": "mix"
   }
+ },
+ {
+  "me": "search",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 37,
+  "played": 40,
+  "winrate": 0.925,
+  "avgTurns": 10.5,
+  "seconds": 457,
+  "when": "2026-10-15T07:18:30+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
+ },
+ {
+  "me": "net",
+  "vs": "showdown_random",
+  "gameType": "singles",
+  "wins": 34,
+  "played": 40,
+  "winrate": 0.85,
+  "avgTurns": 9.7,
+  "seconds": 11,
+  "when": "2026-10-15T07:18:51+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
+ },
+ {
+  "me": "net",
+  "vs": "heuristic",
+  "gameType": "singles",
+  "wins": 20,
+  "played": 40,
+  "winrate": 0.5,
+  "avgTurns": 11.0,
+  "seconds": 13,
+  "when": "2026-10-15T07:19:05+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
+ },
+ {
+  "me": "net",
+  "vs": "max_damage",
+  "gameType": "singles",
+  "wins": 22,
+  "played": 40,
+  "winrate": 0.55,
+  "avgTurns": 8.7,
+  "seconds": 10,
+  "when": "2026-10-15T07:19:15+00:00",
+  "settings": {
+   "worlds": 8,
+   "rollouts": 4,
+   "depth": 3,
+   "prior": 0.08,
+   "leaf": "mix"
+  }
  }
 ]

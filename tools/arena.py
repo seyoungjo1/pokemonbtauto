@@ -21,13 +21,19 @@ from engine import selfplay as SP  # noqa: E402
 from engine.dex import Dex  # noqa: E402
 from engine.policies import BASELINES, make_baseline  # noqa: E402
 
-NAMES = {**BASELINES, "search": "수읽기(탐색) AI", "model": "학습 모델 AI"}
+NAMES = {**BASELINES, "search": "수읽기(탐색) AI", "model": "학습 모델 AI", "net": "신경망 AI (정책망)"}
 
 
 def make(name, dex, seed, gt, opts):
     if name == "search":
         from engine.search import SearchPolicy
         return SearchPolicy(dex, seed=seed, worlds=opts.worlds, rollouts=opts.rollouts, depth=opts.depth, prior=opts.prior, leaf=opts.leaf)
+    if name == "net":
+        from engine import nets
+        n = nets.load_net(gt)
+        if n is None:
+            raise SystemExit(f"{gt} 신경망이 없습니다")
+        return nets.NetPolicy(dex, n, temperature=opts.net_temp, seed=seed)
     if name == "model":
         m = M.load(gt)
         if m is None:
@@ -84,6 +90,7 @@ def main():
     ap.add_argument("--rollouts", type=int, default=4)
     ap.add_argument("--prior", type=float, default=0.08)
     ap.add_argument("--leaf", default="mix", choices=["mix", "race", "material"])
+    ap.add_argument("--net-temp", type=float, default=0.15)
     ap.add_argument("--depth", type=int, default=3)
     a = ap.parse_args()
     dex = Dex()
