@@ -169,7 +169,8 @@ def move_token(dex: Dex, vocab: Vocab, mid: str, atk: Mon, mult) -> np.ndarray:
     # 18 방어 타입 상대 화력 (위력 × 자속 × 배율 × 상성 × 공격 실능)
     if cat != "Status" and bp:
         st = atk.stats["atk" if cat == "Physical" else "spa"]
-        v += [min(4.0, bp * (1.5 if stab else 1.0) * ra * ri * _eff(dex, mo["type"], [t]) * st / (100 * 150)) for t in TYPES]
+        # 상한으로 자르지 않고 로그로 눌러 센 타격끼리의 차이도 남긴다 (log1p: 0→0, 1→0.69, 4→1.61, 10→2.40)
+        v += [math.log1p(bp * (1.5 if stab else 1.0) * ra * ri * _eff(dex, mo["type"], [t]) * st / (100 * 150)) for t in TYPES]
     else:
         v += [0.0] * 18
     acc = mo.get("accuracy")
