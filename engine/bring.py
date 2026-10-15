@@ -62,16 +62,78 @@ class Pairwise:
             m.mega_evolve()
         return m
 
+    def profile(self, a: Mon, b: Mon, a_side=0) -> dict:
+        """a 가 b 를 칠 때: 첫 타(가득 HP, 멀티스케일 반영) 비율·처치 확률, 선공기 비율, 회복기 여부."""
+        from .policies import RECOVERY
+        g = self.pol.best_vs(a, b, self.field, a_side)
+        prio = 0.0
+        for mv in a.moves:
+            mo = self.dex.moves.get(mv)
+            if mo and mo["category"] != "Status" and mo.get("priority", 0) > 0:
+                f, ko = self.pol.exp_frac(a, b, mv, self.field, a_side)
+                prio = max(prio, f)
+        first = min(1.0, g[0])
+        nxt = min(1.0, first * 2) if b.ability in ("multiscale", "shadowshield") else first
+        return {"first": first, "ko": g[1], "next": nxt, "prio": prio, "move": g[2],
+                "heal": 0.5 if any(m in RECOVERY for m in a.moves) else 0.0,
+                "spe": self.pol.speed(a, self.field, a_side)}
+
+    def race(self, a: Mon, b: Mon) -> float:
+        """1:1 경주: 번갈아 가장 센 기술로 치고(빠른 쪽 먼저, 선공기로 마무리 가능하면 그쪽 먼저),
+        HP 가 적고 받는 타격이 작으면 회복. 이긴 쪽의 남은 HP (+: a 승, −: b 승), −1~1."""
+        pa, pb = self.profile(a, b, 0), self.profile(b, a, 1)
+        if pa["first"] <= 0 and pb["first"] <= 0:
+            return 0.0
+        ha = hb = 1.0
+        hits = {"a": 0, "b": 0}
+        heals = {"a": 0, "b": 0}
+        a_fast = pa["spe"] > pb["spe"] or (pa["spe"] == pb["spe"] and a.stats.get("spe", 0) >= b.stats.get("spe", 0))
+        for _ in range(40):
+            a_prio_ko = pa["prio"] >= hb > 0
+            b_prio_ko = pb["prio"] >= ha > 0
+            order = ["a", "b"] if a_fast else ["b", "a"]
+            if a_prio_ko and not b_prio_ko:
+                order = ["a", "b"]
+            elif b_prio_ko and not a_prio_ko:
+                order = ["b", "a"]
+            for who in order:
+                if ha <= 0 or hb <= 0:
+                    break
+                me, hp, other_p = (pa, ha, pb) if who == "a" else (pb, hb, pa)
+                dmg = me["first"] if hits[who] == 0 else me["next"]
+                incoming = other_p["first"] if hits["b" if who == "a" else "a"] == 0 else other_p["next"]
+                if me["heal"] and hp < 0.5 and heals[who] < 4 and incoming < me["heal"] - 0.05 and dmg < (hb if who == "a" else ha):
+                    heals[who] += 1
+                    if who == "a":
+                        ha = min(1.0, ha + me["heal"])
+                    else:
+                        hb = min(1.0, hb + me["heal"])
+                    continue
+                if dmg <= 0:
+                    continue
+                hits[who] += 1
+                if who == "a":
+                    hb -= dmg
+                else:
+                    ha -= dmg
+            if ha <= 0 or hb <= 0:
+                break
+        if ha <= 0 and hb <= 0:
+            return 0.0
+        if hb <= 0:
+            return float(max(0.05, ha))
+        if ha <= 0:
+            return float(-max(0.05, hb))
+        return float(0.3 * (ha - hb))   # 끝나지 않으면 (둘 다 못 뚫음) 남은 HP 차의 일부
+
     def grid(self, mine: list, theirs: list) -> np.ndarray:
+        """내 세트 × 상대 세트의 1:1 경주 결과 (+ 유리)."""
         A = [self.mon(s) for s in mine]
         B = [self.mon(s) for s in theirs]
         G = np.zeros((len(A), len(B)))
         for i, a in enumerate(A):
             for j, b in enumerate(B):
-                g = self.pol.best_vs(a, b, self.field, 0)
-                t = self.pol.best_vs(b, a, self.field, 1)
-                fast = self.pol.speed(a, self.field, 0) > self.pol.speed(b, self.field, 1)
-                G[i, j] = (g[0] + g[1]) - (t[0] + t[1]) + (0.15 if fast else -0.15)
+                G[i, j] = self.race(a, b)
         return G
 
 

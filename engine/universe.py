@@ -80,7 +80,7 @@ def universe(dex: Dex, game_type="singles", per_species=3, log=print, force=Fals
     """존재 목록 + 모두 대 모두 1:1 상성표 (데이터 버전별로 캐시)."""
     CACHE.mkdir(parents=True, exist_ok=True)
     ver = (dex.meta.get("builtAt") or "x").replace(":", "")[:15]
-    p = CACHE / f"universe_{game_type}_{ver}_{per_species}.npz"
+    p = CACHE / f"universe_{game_type}_{ver}_{per_species}_race.npz"
     ents = entities(dex, game_type, per_species)
     if p.is_file() and not force:
         z = np.load(p, allow_pickle=False)
@@ -96,16 +96,13 @@ def universe(dex: Dex, game_type="singles", per_species=3, log=print, force=Fals
         a = mons[i]
         for j in range(i, n):
             b = mons[j]
-            g = pw.pol.best_vs(a, b, pw.field, 0)
-            t = pw.pol.best_vs(b, a, pw.field, 1)
-            fast = pw.pol.speed(a, pw.field, 0) > pw.pol.speed(b, pw.field, 1)
-            v = (g[0] + g[1]) - (t[0] + t[1]) + (0.15 if fast else -0.15)
+            v = pw.race(a, b)
             G[i, j] = v
             G[j, i] = -v
         if log and (i + 1) % 100 == 0:
             log(f"  상성표 {i + 1}/{n} · {time.time() - t0:.0f}초")
     np.savez_compressed(p, G=G)
-    (CACHE / f"universe_{game_type}_{ver}_{per_species}.json").write_text(
+    (CACHE / f"universe_{game_type}_{ver}_{per_species}_race.json").write_text(
         json.dumps([{"ko": e["ko"], "species": e["set"]["species"], "item": e["set"].get("item"), "weight": e["weight"],
                      "src": e["src"]} for e in ents], ensure_ascii=False), encoding="utf-8")
     return ents, G
