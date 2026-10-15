@@ -1,0 +1,11 @@
+# 실행 환경
+.venv/
+__pycache__/
+*.pyc
+build/
+node_modules/
+# 사용자 PC 에만 두는 것
+token.txt
+config.json
+userdata/
+cache/

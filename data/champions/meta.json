@@ -1,0 +1,54 @@
+{
+ "mod": "champions",
+ "psVersion": "0.11.11",
+ "psCommit": "",
+ "exportedAt": "2026-10-15T05:14:53.825Z",
+ "counts": {
+  "species": 347,
+  "learnsets": 347,
+  "moves": 500,
+  "items": 148,
+  "abilities": 316,
+  "typechart": 19,
+  "natures": 25,
+  "sets": 311,
+  "formats": 15
+ },
+ "builtAt": "2026-10-15T05:16:14+00:00",
+ "koMissing": {
+  "species": [],
+  "moves": [],
+  "abilities": [
+   "As One (Glastrier)",
+   "As One (Spectrier)",
+   "Eelevate",
+   "Embody Aspect (Cornerstone)",
+   "Embody Aspect (Hearthflame)",
+   "Embody Aspect (Teal)",
+   "Embody Aspect (Wellspring)",
+   "Fire Mane"
+  ],
+  "items": []
+ },
+ "typesKo": {
+  "Bug": "벌레",
+  "Dark": "악",
+  "Dragon": "드래곤",
+  "Electric": "전기",
+  "Fairy": "페어리",
+  "Fighting": "격투",
+  "Fire": "불꽃",
+  "Flying": "비행",
+  "Ghost": "고스트",
+  "Grass": "풀",
+  "Ground": "땅",
+  "Ice": "얼음",
+  "Normal": "노말",
+  "Poison": "독",
+  "Psychic": "에스퍼",
+  "Rock": "바위",
+  "Steel": "강철",
+  "Stellar": " 스텔라",
+  "Water": "물"
+ }
+}

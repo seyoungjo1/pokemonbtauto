@@ -1,0 +1,49 @@
+{
+ "dataVersion": "2026-10-15T05:16:14+00:00",
+ "parityFiles": [
+  "parity_doubles.json",
+  "parity_singles.json"
+ ],
+ "checks": {
+  "data": {
+   "ok": true,
+   "errors": [],
+   "summary": "포켓몬 347 · 기술 500 · 도구 148 · 특성 316",
+   "seconds": 0.0
+  },
+  "stats": {
+   "ok": true,
+   "checked": 14000,
+   "mismatch": 0,
+   "examples": [],
+   "summary": "실능력치 14000개 중 14000개 일치",
+   "seconds": 0.17
+  },
+  "damage": {
+   "ok": true,
+   "total": 4907,
+   "exact": 4907,
+   "rate": 1.0,
+   "supported_total": 4768,
+   "supported_exact": 4768,
+   "supported_rate": 1.0,
+   "suspects": [],
+   "fails": [],
+   "summary": "지원 범위 4768/4768 일치 (100.00%) · 전체 4907/4907 (100.00%)",
+   "seconds": 0.75
+  },
+  "paste": {
+   "ok": true,
+   "errors": [],
+   "summary": "팀 텍스트 읽기/쓰기 정상",
+   "seconds": 0.0
+  },
+  "features": {
+   "ok": true,
+   "skipped": "features 모듈 없음",
+   "seconds": 0.0
+  }
+ },
+ "ok": true,
+ "seconds": 1.1
+}
