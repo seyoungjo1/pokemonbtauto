@@ -34,6 +34,12 @@ def make(name, dex, seed, gt, opts):
         if n is None:
             raise SystemExit(f"{gt} 신경망이 없습니다")
         return nets.NetPolicy(dex, n, temperature=opts.net_temp, seed=seed)
+    if name == "tokennet":
+        from engine import battlenet as BN
+        n = BN.load(gt)
+        if n is None:
+            raise SystemExit(f"{gt} 토큰 배틀망이 없습니다 (models/battle_{gt}.json)")
+        return BN.TokenNetPolicy(dex, n, gt, temperature=opts.net_temp, seed=seed)
     if name == "model":
         m = M.load(gt)
         if m is None:

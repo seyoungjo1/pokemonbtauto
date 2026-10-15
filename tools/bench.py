@@ -29,6 +29,12 @@ def make(name, dex, seed, a):
         if n is None:
             raise SystemExit("신경망 없음")
         return nets.NetPolicy(dex, n, temperature=0.15, seed=seed)
+    if name == "tokennet":
+        from engine import battlenet as BN
+        n = BN.load(a.type)
+        if n is None:
+            raise SystemExit("토큰 배틀망 없음")
+        return BN.TokenNetPolicy(dex, n, a.type, temperature=0.15, seed=seed)
     return make_baseline(name, dex, seed)
 
 
