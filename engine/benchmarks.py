@@ -210,3 +210,19 @@ def evaluate(dex: Dex, bridge, fmt: str, me_factory, opp_factory, game_type="sin
                    "seconds": round(time.time() - t0)}
     log(f"  전체 {tw}/{tn} {p:.1%} [{lo:.0%}–{hi:.0%}] · {time.time() - t0:.0f}초")
     return out
+
+
+# ======================================================================== SPRT (순차 확률비 검정)
+def sprt(wins: int, losses: int, p0: float = 0.50, p1: float = 0.55, alpha: float = 0.05, beta: float = 0.05) -> dict:
+    """H0: 승률 = p0  vs  H1: 승률 = p1. 판을 하나씩 더할 때마다 부르면 된다.
+    돌려줌: decision 'accept'(H1 — 더 세다) / 'reject'(H0 쪽) / 'continue', llr, 경계."""
+    import math as _m
+    if p0 <= 0 or p1 >= 1 or p1 <= p0:
+        raise ValueError("0 < p0 < p1 < 1")
+    llr = wins * _m.log(p1 / p0) + losses * _m.log((1 - p1) / (1 - p0))
+    upper = _m.log((1 - beta) / alpha)
+    lower = _m.log(beta / (1 - alpha))
+    d = "accept" if llr >= upper else ("reject" if llr <= lower else "continue")
+    return {"decision": d, "llr": round(llr, 3), "upper": round(upper, 3), "lower": round(lower, 3),
+            "wins": wins, "losses": losses, "n": wins + losses}
+

@@ -206,11 +206,26 @@ def evaluate(gt, cand_path, n, log):
         r = {"wins": w, "played": pl, "winrate": w / pl if pl else 0, "ko": label}
         log(f"  새 신경망 vs {label}: {w}/{pl} ({r['winrate']:.0%})")
         return r
+    from engine import benchmarks as BM
     league = {}
     for k, label in (("showdown_random", "쇼다운 기본 AI"), ("max_damage", "최대 데미지 AI"), ("heuristic", "선생님 AI")):
-        league[k] = match(lambda g, k=k: make_baseline(k, dex, g + 77), label, max(10, n // 2))
+        league[k] = match(lambda g, k=k: make_baseline(k, dex, g + 77), label, max(40, n))
+        p_, lo, hi = BM.wilson(league[k]["wins"], league[k]["played"])
+        league[k]["ci"] = [round(lo, 3), round(hi, 3)]
     if best is not None:
-        league["best"] = match(lambda g: nets.NetPolicy(dex, best, temperature=0.15, seed=g + 9), "지금 최고 신경망", n)
+        # 순차검정: 새 신경망이 지금 최고를 55% 이상 이기는지 (H0 50% vs H1 55%, 오류율 5%) — 결론이 날 때까지 20판씩, 최대 max_games
+        w = pl = 0
+        batch, max_games = 20, max(200, n * 10)
+        r = {"decision": "continue"}
+        while pl < max_games and r["decision"] == "continue":
+            m_ = match(lambda g: nets.NetPolicy(dex, best, temperature=0.15, seed=g + 9 + pl), "지금 최고 신경망", batch)
+            w += m_["wins"]
+            pl += m_["played"]
+            r = BM.sprt(w, pl - w)
+        p_, lo, hi = BM.wilson(w, pl)
+        league["best"] = {"wins": w, "played": pl, "winrate": p_, "ci": [round(lo, 3), round(hi, 3)], "ko": "지금 최고 신경망",
+                          "sprt": r["decision"], "llr": r["llr"]}
+        log(f"  순차검정: {w}/{pl} ({p_:.1%}, [{lo:.0%}–{hi:.0%}]) → {'채택' if r['decision'] == 'accept' else '기각' if r['decision'] == 'reject' else '미결(상한 도달)'}")
     return league
 
 
@@ -244,21 +259,26 @@ def train_bring(gt, log, max_games=8000, eval_games=200):
         a.name = "bring_new"
         b = BN.BringPolicy(dex, HeuristicPolicy(dex, seed=g + 5000), cur, gt, seed=g + 1) if cur else HeuristicPolicy(dex, seed=g + 5000)
         return {"p1": a, "p2": b} if g % 2 == 0 else {"p1": b, "p2": a}
-    p = SP.run(eval_games, gt, out_dir=ROOT / "userdata" / "arena", seed=8800, policy_factory=fac, log=lambda *x: None)
+    from engine import benchmarks as BM
     w = n = 0
-    for g in SP.iter_games([p]):
-        if g["winner"]:
-            me_ = "p1" if g["policies"]["p1"] == "bring_new" else "p2"
-            n += 1
-            w += g["winner"] == me_
-    p.unlink(missing_ok=True)
+    r = {"decision": "continue"}
+    while n < max(200, eval_games * 3) and r["decision"] == "continue":
+        p = SP.run(40, gt, out_dir=ROOT / "userdata" / "arena", seed=8800 + n, policy_factory=fac, log=lambda *x: None)
+        for g in SP.iter_games([p]):
+            if g["winner"]:
+                me_ = "p1" if g["policies"]["p1"] == "bring_new" else "p2"
+                n += 1
+                w += g["winner"] == me_
+        p.unlink(missing_ok=True)
+        r = BM.sprt(w, n - w)
     wr = w / max(1, n)
-    log(f"  새 선출망 vs {'지금 선출망' if cur else '규칙 선출'} (배틀은 같은 선생님 AI): {w}/{n} ({wr:.0%})")
-    if cur is None or wr >= 0.52:
+    p_, lo, hi = BM.wilson(w, n)
+    log(f"  새 선출망 vs {'지금 선출망' if cur else '규칙 선출'} (배틀은 같은 선생님 AI): {w}/{n} ({wr:.0%}, [{lo:.0%}–{hi:.0%}]) 순차검정 {r['decision']}")
+    if cur is None or r["decision"] == "accept":
         net.info = {"metrics": m, "samples": int(len(Y)), "arena": {"wins": w, "played": n, "vs": "current" if cur else "rule"}}
         net.save(BN.path_for(gt))
         log("  → 선출망 교체")
-    return {"metrics": m, "winrate": wr, "kept": cur is None or wr >= 0.52}
+    return {"metrics": m, "winrate": wr, "kept": cur is None or r["decision"] == "accept"}
 
 
 # ======================================================================== 파티 최적화 (몇 걸음)
@@ -344,7 +364,7 @@ def main():
             cand, n_games = r
             league = evaluate(gt, cand, a.eval_games, log)
             best_wr = league.get("best", {}).get("winrate")
-            keep = best_wr is None or best_wr >= 0.55
+            keep = best_wr is None or league["best"].get("sprt") == "accept"
             if keep:
                 from engine import nets
                 dst = nets.path_for(gt)
@@ -363,7 +383,7 @@ def main():
                     pass
             else:
                 cand.unlink(missing_ok=True)
-                log(f"  → 유지 (이전 최고 상대 {best_wr:.0%} < 55%)")
+                log(f"  → 유지 (이전 최고 상대 {best_wr:.0%}, 순차검정 {league['best'].get('sprt')})")
             st["progress"].append({"iter": it, "when": now(), "gameType": gt, "games": n_games,
                                    "league": {k: {"winrate": v["winrate"], "played": v["played"]} for k, v in league.items()},
                                    "kept": keep})
