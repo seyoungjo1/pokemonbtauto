@@ -17,7 +17,7 @@
    "mismatch": 0,
    "examples": [],
    "summary": "실능력치 14000개 중 14000개 일치",
-   "seconds": 0.13
+   "seconds": 0.16
   },
   "damage": {
    "ok": true,
@@ -30,7 +30,7 @@
    "suspects": [],
    "fails": [],
    "summary": "지원 범위 4768/4768 일치 (100.00%) · 전체 4907/4907 (100.00%)",
-   "seconds": 0.83
+   "seconds": 0.78
   },
   "paste": {
    "ok": true,
@@ -42,9 +42,19 @@
    "ok": true,
    "errors": [],
    "summary": "상태 묶음 13개 · 선택지 묶음 8개 · 입력 199칸",
-   "seconds": 0.11
+   "seconds": 0.1
+  },
+  "net": {
+   "ok": true,
+   "summary": "singles: ?판 학습 / doubles: 신경망 없음",
+   "seconds": 0.04
+  },
+  "torch": {
+   "ok": true,
+   "skipped": "PyTorch 없음 — numpy 로 학습 (GPU 학습을 하려면 밤샘학습.bat 이 설치)",
+   "seconds": 0.0
   }
  },
  "ok": true,
- "seconds": 1.2
+ "seconds": 1.3
 }

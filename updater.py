@@ -65,12 +65,25 @@ def local_manifest() -> dict:
     return {"version": "0", "files": {}}
 
 
+def _model_created(path: Path) -> str:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("created", "")
+    except Exception:
+        return ""
+
+
 def check() -> dict:
     remote = json.loads(fetch("manifest.json").decode("utf-8"))
     changed = []
     for path, info in remote.get("files", {}).items():
         if path in KEEP_LOCAL:
             continue
+        # 내 PC 에서 밤샘 학습한 신경망이 더 새것이면 저장소 것으로 덮어쓰지 않는다
+        if path.startswith("models/") and path.endswith(".json") and (HERE / path).is_file():
+            stem = Path(path).stem
+            remote_created = (remote.get("models", {}).get(stem) or {}).get("created", "")
+            if _model_created(HERE / path) >= remote_created:
+                continue
         p = HERE / path
         if not p.is_file() or p.stat().st_size != info["size"] or sha256(p) != info["sha256"]:
             changed.append(path)

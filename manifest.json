@@ -1,0 +1,302 @@
+{
+ "version": "0.1.0",
+ "files": {
+  "README.md": {
+   "sha256": "8e7a475463a22f4180674cf51ae566e37896186269e1a95b7c6ee1a526b26015",
+   "size": 1617
+  },
+  "app.py": {
+   "sha256": "fb9e06a8d074df636f0c2e22bda7df4d58b50c9ece269fe5f5a178600179fcf2",
+   "size": 20841
+  },
+  "data/champions/abilities.json": {
+   "sha256": "1bfd0444e5f9b6878667f3be1a9a39e99d3012a07c352cd7e37da7c99d8f88d7",
+   "size": 76735
+  },
+  "data/champions/expert_sets.json": {
+   "sha256": "8e585c5f4c9daafd6c945b5a9406df9c621fd2fccac21db8c1a594ba4d766ef0",
+   "size": 89715
+  },
+  "data/champions/formats.json": {
+   "sha256": "092effea496ab3430712b55d93c0e449b9131850359d3dd8bbbb7e1e57d39f52",
+   "size": 1720
+  },
+  "data/champions/history/usage_2026-10-15_x.json": {
+   "sha256": "90a6cdf93a671a96633d8f86351c6493854c833588281f6b3f33a353e834bb12",
+   "size": 1006036
+  },
+  "data/champions/items.json": {
+   "sha256": "c6553a4de8764a2bb30e0e780caaa379e172f3632676cca90ebcbe0db8c5694a",
+   "size": 43603
+  },
+  "data/champions/learnsets.json": {
+   "sha256": "5299b6f34b344f572944daf43da12509c1c6c46b54f5b053581ef20342414cad",
+   "size": 266463
+  },
+  "data/champions/meta.json": {
+   "sha256": "d9d65b933cd25e841baed2b4ad98038dfd7a25ed6ef41457a950673d7cf0ad79",
+   "size": 1044
+  },
+  "data/champions/moves.json": {
+   "sha256": "7624a6821fcb8ec539dfdeb94f0ff3ce8d40536f88f0ae581fbf5234c891f2a0",
+   "size": 237669
+  },
+  "data/champions/natures.json": {
+   "sha256": "374aa6cf2903abb0d41e1173ed8195238329d9837f4cfa4ec97c5afddacc5180",
+   "size": 1701
+  },
+  "data/champions/sets.json": {
+   "sha256": "f705bec8d6eb795caf2efce4786b33a6d0290fa1d129896b80b2148c991d5087",
+   "size": 70247
+  },
+  "data/champions/species.json": {
+   "sha256": "a901aa34599dde3750e6e31f99e8f7bd698bc075e67db9df16d4c6abbc30c50a",
+   "size": 157322
+  },
+  "data/champions/typechart.json": {
+   "sha256": "29edbe75d65da49941933b2c41892e0241774cb8fa149c68cbfd7016be50b512",
+   "size": 4409
+  },
+  "data/champions/usage.json": {
+   "sha256": "96f34813145bb61b61336d6420ca4d27164b3adeb045101df6f21cfa81be931c",
+   "size": 1006065
+  },
+  "engine/__init__.py": {
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "size": 0
+  },
+  "engine/advisor.py": {
+   "sha256": "081aea9dfade1330d238acacdd16fda7472985b4f5b28f84e19bdae68392e763",
+   "size": 20914
+  },
+  "engine/analysis.py": {
+   "sha256": "fa70aa48564c030db8df6b5bdbafafa3b4b7bbf5f0b7cb2b4cac2f87b3ca392c",
+   "size": 6343
+  },
+  "engine/belief.py": {
+   "sha256": "014ccb813711a7133baf8b236e853a1cde220bb0aa3192f3931ec02c73ad5a0c",
+   "size": 13644
+  },
+  "engine/bring.py": {
+   "sha256": "63668fddaf99cd7875997bb6b3468ba90ec8e1c812ec208a12957fe7b1ab3eac",
+   "size": 7261
+  },
+  "engine/builder.py": {
+   "sha256": "c4e57a8ae193242d247f29cb6f4ca9d681b9d13ff8b3cce6cc248816fae047a0",
+   "size": 15414
+  },
+  "engine/damage.py": {
+   "sha256": "e0f739cb4c55379fcbceaa8edee3f4cad0b823a7efa40002c13865a3e966df02",
+   "size": 35726
+  },
+  "engine/dex.py": {
+   "sha256": "aaf76480faae2e61dae1040a9de1091ed25568351a81d29fed20911f9d9f3ca0",
+   "size": 4594
+  },
+  "engine/features.py": {
+   "sha256": "c24096acab6f36e217399023a95c7acc9e957794659e9e968cee59b12c5ad9f1",
+   "size": 25942
+  },
+  "engine/insights.py": {
+   "sha256": "7088d1d519fd4ef19a7b1a2b29c5ef1f7a71fcfd7db3d8074dfa612c134e484f",
+   "size": 6638
+  },
+  "engine/model.py": {
+   "sha256": "1ef39ae055da9b8d7936cd0c1f810aed770467c927a9c8f1b6f464975a557de2",
+   "size": 13326
+  },
+  "engine/mon.py": {
+   "sha256": "871e3b41367fbf7f3a478f67aff286a591092d685eac5e8c4d3cf11937eec0a7",
+   "size": 7860
+  },
+  "engine/nets.py": {
+   "sha256": "773355639df7ece593fd13a8113b450f62f7ff7bb3b849627b1a3f4be6fd8774",
+   "size": 12970
+  },
+  "engine/nets_torch.py": {
+   "sha256": "3685199a5bb6545ef40d08a10849ae32f6dc1c5067bb3553694e1091c52a6176",
+   "size": 6397
+  },
+  "engine/policies.py": {
+   "sha256": "65e7c66aa81ff4b65a89cebb65443dc21b310277cdd7d87e533efb167779d528",
+   "size": 16606
+  },
+  "engine/protocol.py": {
+   "sha256": "566fda928f050b9cf1f0168c2a75e87b035223c2d3296dd5535d2c10ade6b33e",
+   "size": 22269
+  },
+  "engine/psbridge.py": {
+   "sha256": "f2991fb7b0a042b71112d9805bd34066d1531d3ad4f5ce548b1463aed267371d",
+   "size": 2242
+  },
+  "engine/search.py": {
+   "sha256": "123492e425bf5e303fbdbff9bf786e4b5c302e15ed4bb30224cde953a9bdf2bc",
+   "size": 12525
+  },
+  "engine/selfplay.py": {
+   "sha256": "1f6a37955800625d486dcf321a9500e236eab14c8669ddfa08e082799e8289da",
+   "size": 7606
+  },
+  "engine/selfplay_check.py": {
+   "sha256": "d0cd9024e70f718929940e2a6d73325b88009f904b9d1e08127f7c6580ee4983",
+   "size": 5562
+  },
+  "engine/team.py": {
+   "sha256": "ca0e13b19ee7e9ce3dcf936314f6f512254eeff9f20cdded21314b053993028b",
+   "size": 5506
+  },
+  "engine/teamgen.py": {
+   "sha256": "764a1235bc6a774b5ee2b9356324e55945b3e7a7a43e41f3b5a486132872a581",
+   "size": 12077
+  },
+  "engine/teamopt.py": {
+   "sha256": "cfcfab8c66409a35ca11eb22c5071748444a2d49160b1a049eb23c9c40e27834",
+   "size": 14263
+  },
+  "features/ledger.json": {
+   "sha256": "8a1a8e72df77bccf71e8a6743fa3e20f95bd02d85aaf6a05341368c5c3322d4a",
+   "size": 4582
+  },
+  "models/net_singles.json": {
+   "sha256": "ebd9b74c3ece913730e60cd8d15cad0d86699c6148ccb4e5b2edb582bcd2d3c8",
+   "size": 2280876
+  },
+  "reports/arena.json": {
+   "sha256": "5a384d030819225ac6638969df7182790332b18a75d9c21544dc5c42a1b54862",
+   "size": 4564
+  },
+  "reports/arena.md": {
+   "sha256": "8498feb69aabf2089358a3b3c625e3a102052886b6a943096e5930a3963ce335",
+   "size": 2065
+  },
+  "reports/insights.json": {
+   "sha256": "8ef599647620250caafd80e34fd2e98e2a0c91ce775540789825d6fc1ffe6c8f",
+   "size": 3825
+  },
+  "reports/insights.md": {
+   "sha256": "753089d3e1492a84f38cebb1b0fb611d90f881416317b09a61df929fcd60f896",
+   "size": 2472
+  },
+  "reports/selftest.json": {
+   "sha256": "1b0bfee316db292fce8a340238c8556a837aba6b529d1245543ecd4297e3be9f",
+   "size": 1327
+  },
+  "reports/training_history.json": {
+   "sha256": "36dcb5112e603b461b351e37e9b8fa181e7b1461782814b29cba21449920f850",
+   "size": 1531
+  },
+  "requirements.txt": {
+   "sha256": "e02ce4624c214f17c759a748c8b84e4198cd35e81729c48e02cae9e4c2a975e2",
+   "size": 12
+  },
+  "run.bat": {
+   "sha256": "72857a0b8ff27713c58096d1bf94c61c2d291cbb052ab672753604d78fad52c7",
+   "size": 665
+  },
+  "static/app.css": {
+   "sha256": "bd54bd6683c1977c5c5622282feb3178f6bbd43050eabc177e7111523017457e",
+   "size": 14701
+  },
+  "static/app.js": {
+   "sha256": "9a0fdd197021d5002e83799a783f4952a5681bf0b3ac089ee22b0b8efb68533f",
+   "size": 56361
+  },
+  "templates/index.html": {
+   "sha256": "241b6cfc0b639244e8de764bb334638720302bc952152a2d07d6d44ae7044050",
+   "size": 9309
+  },
+  "tests/parity_doubles.json": {
+   "sha256": "908c01fe0b42dc3094df29d0aeb17485d3f72e61a63b12db0060bf4124b55481",
+   "size": 3592025
+  },
+  "tests/parity_singles.json": {
+   "sha256": "5d21bc0220eb79343dfc3d07cfb390336b671acb49bdf5405a4896a3b16bb7a2",
+   "size": 3630272
+  },
+  "tests/selftest.py": {
+   "sha256": "3fa6418c2848ffa22092369360a580171f6de2e5270b5485926186fa954e2623",
+   "size": 13129
+  },
+  "tools/arena.py": {
+   "sha256": "cd5a1660c31885a4fb70c4bf1329e2511d07c695da0e2f09207e9728d0bb627b",
+   "size": 4924
+  },
+  "tools/build_data.py": {
+   "sha256": "aa6a59463d825300ca010ff8b78e56164000fc2e10d6791aba254fe42af1ae1a",
+   "size": 5717
+  },
+  "tools/export_champions.js": {
+   "sha256": "0687097f7f044df2078a7cfd34ef3dc48c90b15b01eec3070a3eb4548b222737",
+   "size": 6155
+  },
+  "tools/fetch_meta.py": {
+   "sha256": "875f4536ee5fb165da3f77627039e34437430897ba0a20c26b76c37a03f3a29e",
+   "size": 9446
+  },
+  "tools/make_manifest.py": {
+   "sha256": "84e8f680f3b05fbeeb33cac041b95a802910487cf89217aad0ff3e781c82cbb9",
+   "size": 2489
+  },
+  "tools/overnight.py": {
+   "sha256": "3d1f4eb7c6700d53508c6a5ea7d9e5dab7352bacf1a5d1bc8c77a6dda9983d9b",
+   "size": 12068
+  },
+  "tools/parity.js": {
+   "sha256": "6ab1b82b2a3db4f30b0a7b21c31ecbbd6c4c289b8020928ef634bdf759a57bd6",
+   "size": 11160
+  },
+  "tools/ps_bridge.js": {
+   "sha256": "099f6b40e8c8ca6612be5229072b152a2ff25619c811f290e2cd7f92eeb9912e",
+   "size": 4531
+  },
+  "tools/ps_search.js": {
+   "sha256": "9a9fc8cbb42e73dc2aee40c6f36aea786afb107d4d00b4233080b5261e22e7ae",
+   "size": 16048
+  },
+  "tools/setup_showdown.py": {
+   "sha256": "352ec94657f10380a231251e40e31ebabda2300b4d975c988d0dc732579118a5",
+   "size": 2331
+  },
+  "tools/train.py": {
+   "sha256": "3c4d36372c180c4bf088db9cc054ef3047acc25340ed00078d3177cea7c445f2",
+   "size": 17567
+  },
+  "updater.py": {
+   "sha256": "0dd00780f2abb0b8664801ce34ae00147f3c56420a4927cd42f284506fc5f932",
+   "size": 5262
+  },
+  "version.txt": {
+   "sha256": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
+   "size": 6
+  },
+  "밤샘학습.bat": {
+   "sha256": "0a0961764a5c00e7bd620c17030bba811904aa3042470d2c415d331d61455e67",
+   "size": 2034
+  }
+ },
+ "dataVersions": {
+  "champions": {
+   "builtAt": "2026-10-15T05:16:14+00:00",
+   "psVersion": "0.11.11",
+   "psCommit": "",
+   "counts": {
+    "species": 347,
+    "learnsets": 347,
+    "moves": 500,
+    "items": 148,
+    "abilities": 316,
+    "typechart": 19,
+    "natures": 25,
+    "sets": 311,
+    "formats": 15
+   }
+  }
+ },
+ "models": {
+  "net_singles": {
+   "created": "2026-10-15T07:18:26+00:00",
+   "games": 601,
+   "league": {}
+  }
+ }
+}

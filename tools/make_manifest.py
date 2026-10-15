@@ -9,10 +9,11 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INCLUDE = ["app.py", "updater.py", "run.bat", "requirements.txt", "version.txt", "README.md", "FEATURES.md"]
+INCLUDE = ["app.py", "updater.py", "run.bat", "밤샘학습.bat", "requirements.txt", "version.txt", "README.md", "FEATURES.md"]
 INCLUDE_DIRS = ["engine", "templates", "static", "data", "models", "features", "tests", "tools", "reports"]
+# models/history 의 지난 신경망은 리그 상대이므로 사용자 PC 에도 내려받는다
 SKIP_SUFFIX = {".pyc"}
-SKIP_PARTS = {"__pycache__", "history"}
+SKIP_PARTS = {"__pycache__"}
 
 
 def main():

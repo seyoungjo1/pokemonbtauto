@@ -240,7 +240,41 @@ def check_model(dex):
     return model.selfcheck(dex)
 
 
-CHECKS = ["data", "stats", "damage", "paste", "features", "sim", "model"]
+def check_torch():
+    from engine import nets_torch
+    return nets_torch.selfcheck()
+
+
+def check_net(dex):
+    """학습된 정책·가치망을 불러와 가짜 상황에서 확률·승률이 정상 범위인지."""
+    from engine import nets
+    out = {"ok": True, "summary": ""}
+    msgs = []
+    for gt in ("singles", "doubles"):
+        p = nets.path_for(gt)
+        if not p.is_file():
+            msgs.append(f"{gt}: 신경망 없음")
+            continue
+        try:
+            n = nets.PolicyValueNet.load(p)
+            import numpy as np
+            s = np.zeros(n.ds, np.float32)
+            O = np.zeros((3, n.do), np.float32)
+            pr = n.policy(s, O)
+            v = n.value(s)
+            if abs(pr.sum() - 1) > 1e-4 or not (0 <= v <= 1):
+                out["ok"] = False
+                msgs.append(f"{gt}: 출력 이상")
+            m = (n.info or {}).get("metrics", {})
+            msgs.append(f"{gt}: {n.info.get('games', '?')}판 학습" + (f" · 정책 일치 {m['top1']:.0%} · 승패 예측 {m['valueAcc']:.0%}" if m else ""))
+        except Exception as e:
+            out["ok"] = False
+            msgs.append(f"{gt}: 불러오기 실패 — {e}")
+    out["summary"] = " / ".join(msgs)
+    return out
+
+
+CHECKS = ["data", "stats", "damage", "paste", "features", "sim", "net", "torch"]
 
 
 def run(which=None, verbose=True) -> dict:
@@ -265,6 +299,10 @@ def run(which=None, verbose=True) -> dict:
             r = check_sim()
         elif name == "model":
             r = check_model(dex)
+        elif name == "net":
+            r = check_net(dex)
+        elif name == "torch":
+            r = check_torch()
         else:
             continue
         r["seconds"] = round(time.time() - t, 2)

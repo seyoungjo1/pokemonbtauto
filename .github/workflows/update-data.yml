@@ -1,0 +1,76 @@
+# 챔피언스 데이터 · 메타 통계 자동 갱신 (매일)
+#  1. 쇼다운 최신 master 를 받아 빌드
+#  2. 규칙별(champions, championsregmb, …) 데이터 추출 + 한글 이름
+#  3. 메타 통계(사용률·전문가 세트) 받기 — 바뀌면 이전 것은 data/<규칙>/history/
+#  4. 셀프테스트: 최신 쇼다운으로 데미지 대조 사례를 새로 만들어 엔진과 비교 — 실패하면 올리지 않음
+#  5. manifest.json 갱신 후 main 에 커밋 → 사용자 PC 의 '업데이트' 가 받아 감
+name: 챔피언스 데이터 갱신
+
+on:
+  schedule:
+    - cron: '17 19 * * *'   # 매일 04:17 (한국 시간)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy
+
+      - name: 쇼다운 최신판 빌드
+        run: |
+          git clone --depth 1 https://github.com/smogon/pokemon-showdown.git build/pokemon-showdown
+          cd build/pokemon-showdown
+          npm ci --no-audit --no-fund
+          node build
+          echo "PS_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: 규칙별 챔피언스 데이터 추출
+        run: |
+          for mod in $(ls build/pokemon-showdown/dist/data/mods | grep '^champions'); do
+            echo "== $mod"
+            PS_MOD=$mod node tools/export_champions.js build/pokemon-showdown build/raw/$mod
+            python tools/build_data.py build/raw/$mod --out data/$mod
+          done
+
+      - name: 메타 통계 (사용률 · 전문가 세트)
+        run: |
+          for d in data/champions*/; do python tools/fetch_meta.py --out "$d" || echo "메타 받기 실패: $d"; done
+
+      - name: 셀프테스트 (최신 쇼다운과 데미지 대조)
+        env:
+          PS_DIR: build/pokemon-showdown
+        run: |
+          node tools/parity.js build/pokemon-showdown tests/parity_singles.json 3000 11 singles
+          node tools/parity.js build/pokemon-showdown tests/parity_doubles.json 2000 23 doubles
+          python tests/selftest.py data stats damage paste features sim
+
+      - name: 업데이트 목록 갱신 후 커밋
+        run: |
+          python tools/make_manifest.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data tests/parity_singles.json tests/parity_doubles.json manifest.json reports/selftest.json
+          if git diff --cached --quiet; then
+            echo "바뀐 데이터 없음"
+          else
+            git commit -m "챔피언스 데이터 자동 갱신 (쇼다운 ${PS_COMMIT:0:7})"
+            git push origin main
+          fi
