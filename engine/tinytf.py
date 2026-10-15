@@ -335,8 +335,9 @@ class Encoder(Module):
         mean_out = (H * valid[:, :, None]).sum(1) / self.cnt
         return H[:, 0], mean_out
 
-    def backward(self, g_cls=None, g_mean=None):
-        gH = np.zeros_like(self.H)
+    def backward(self, g_cls=None, g_mean=None, g_tokens=None):
+        """g_tokens [B,T,d]: 토큰별 출력(self.H)에 대한 기울기 (정책 헤드가 행위자·대상 토큰을 쓸 때)."""
+        gH = np.zeros_like(self.H) if g_tokens is None else np.array(g_tokens, dtype=self.H.dtype, copy=True)
         if g_cls is not None:
             gH[:, 0] += g_cls
         if g_mean is not None:
