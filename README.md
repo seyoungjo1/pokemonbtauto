@@ -52,6 +52,22 @@
 
 `python tests/selftest.py` — 데이터 · 능력치 · 데미지(쇼다운 대조) · 팀 텍스트 · 변수 · 시뮬레이터(승자 집계·수읽기·선출표) · 리플레이 해석(정확도·별명·메가 규칙) · 신경망(+수술 출력 보존) · PyTorch(GPU) 경로.
 
+## 토큰 배틀망 학습 (PC · 1단계 — 재설계안 `docs/ARCHITECTURE.md`)
+
+포켓몬을 이름이 아니라 **종/능력치·특성·도구·기술×4 요소 토큰**으로 쪼개 어텐션으로 묶는 새 신경망입니다. 학습·평가는 모두 JSON 을 돌려주므로 나중에 MCP 도구로 그대로 쓸 수 있습니다.
+
+```
+python tools/train2.py status                       # 모델·데이터·토치(CUDA) 현황
+python tools/train2.py bc   --type singles          # 기보(30%) + 자기대전으로 정책·가치 학습 → models/battle_singles_candidate.json
+python tools/train2.py eval --type singles          # 후보 vs 선생님 AI · 지금 토큰망 — SPRT 순차검정 (최대 400판)
+python tools/train2.py adopt                        # 게이트를 통과한 후보를 채택
+python tools/train2.py all                          # 위 셋을 차례로
+python tools/feasibility.py prep && python tools/feasibility.py run   # 요소 토큰 인코더 가능성 시험 (존재 쌍 경주값, 데이터 없는 종 일반화)
+python tools/bench.py --me tokennet --vs heuristic --games 100       # 아키타입 벤치마크 거울전 (신뢰구간)
+```
+
+GPU(CUDA) 가 있으면 `engine/battlenet_torch.py` 로 학습하고, 없으면 numpy(`engine/battlenet.py`)로 같은 구조를 학습합니다 (`--tiny` 는 작은 시험용).
+
 ## 기보 받기 (직접)
 
 ```
