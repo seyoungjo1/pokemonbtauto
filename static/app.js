@@ -633,10 +633,15 @@ async function renderAI() {
   const [info, meta, rep] = await Promise.all([api('/api/ai/info'), api('/api/meta'), api('/api/battle/report')]);
   const tiles = $('#aiTiles'); tiles.innerHTML = '';
   for (const gt of ['singles', 'doubles']) {
-    const m = meta.models[gt];
-    tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, (gt === 'singles' ? '싱글' : '더블') + ' 모델'), h('div', { class: 'v' }, m ? `${m.games}판` : '없음'),
-      h('div', { class: 'small muted' }, m ? `예측 정확도 ${pct(m.metrics.q.acc)} · 손실 ${m.metrics.q.logloss} (기준 ${m.metrics.q.baseline})` : '학습 전 — 선생님 정책으로 추천')));
+    const m = meta.models[gt]; const mt = (m && m.metrics) || {};
+    tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, (gt === 'singles' ? '싱글' : '더블') + ' 신경망'), h('div', { class: 'v' }, m ? (m.games ? `${m.games}판` : '학습됨') : '없음'),
+      h('div', { class: 'small muted' }, m ? [mt.top1 != null && `행동 일치 ${pct(mt.top1)}`, mt.valueAcc != null && `승패 예측 ${pct(mt.valueAcc)}`, `입력 ${m.inputs}칸`, (m.created || '').slice(0, 10)].filter(Boolean).join(' · ') : '학습 전 — 선생님 AI 로 추천')));
   }
+  const dd = info.data || {};
+  tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, '사람 기보'), h('div', { class: 'v' }, `${dd.replays || 0}판`),
+    h('div', { class: 'small muted' }, `쇼다운 리플레이 · 나와 둔 대전 ${dd.vsUser || 0}판`)));
+  if (dd.patch) tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, '패치 감지'), h('div', { class: 'v' }, dd.patch.changes ? `${dd.patch.changes}건 변경` : '변경 없음'),
+    h('div', { class: 'small muted' }, dd.patch.changes ? '집중 대전: ' + dd.patch.focus.slice(0, 5).map(([k]) => k).join(', ') : '지난 학습 이후 데이터 같음')));
   tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, '내 실제 대전'), h('div', { class: 'v' }, `${rep.wins}/${rep.total}`), h('div', { class: 'small muted' }, rep.total ? `승률 ${pct(rep.wins / rep.total)}` : '기록 없음')));
   const st = info.selftest || {};
   tiles.append(h('div', { class: 'card tile' }, h('div', { class: 'k' }, '마지막 셀프테스트'), h('div', { class: 'v', style: `color:var(${st.ok ? '--good' : '--bad'})` }, st.checks ? (st.ok ? '통과' : '실패') : '–'),
@@ -662,9 +667,12 @@ async function renderAI() {
   }
   // 기록
   const hi = $('#aiHistory'); hi.innerHTML = '';
-  hi.append(h('table', { class: 't' }, h('tr', {}, ...['시각', '형식', '판수', '정확도', '선생님 상대', '교체'].map(x => h('th', {}, x))),
-    ...(info.history || []).filter(e => e.type === 'train').reverse().map(e => h('tr', {}, h('td', {}, (e.when || '').slice(0, 16).replace('T', ' ')), h('td', {}, e.gameType === 'singles' ? '싱글' : '더블'), h('td', {}, e.games),
-      h('td', {}, pct(e.metrics.q.acc)), h('td', {}, e.league && e.league.heuristic ? pct(e.league.heuristic.winrate) : (e.arena && e.arena.winrate != null ? pct(e.arena.winrate) : '-')), h('td', {}, e.kept ? '예' : '아니오')))));
+  const ov = (info.overnight || []).slice().reverse();
+  if (!ov.length) hi.append(h('div', { class: 'empty' }, '밤샘 학습 기록이 없습니다. 밤샘학습.bat 으로 시작하세요.'));
+  else hi.append(h('table', { class: 't' }, h('tr', {}, ...['회차', '시각', '형식', '판수', '쇼다운 AI', '선생님', '이전 최고', '교체'].map(x => h('th', {}, x))),
+    ...ov.map(e => { const L = e.league || {}; const w = (k) => L[k] ? pct(L[k].winrate) : '-';
+      return h('tr', {}, h('td', {}, e.iter), h('td', {}, (e.when || '').slice(5, 16).replace('T', ' ')), h('td', {}, e.gameType === 'singles' ? '싱글' : '더블'), h('td', {}, e.games),
+        h('td', {}, w('showdown_random')), h('td', {}, w('heuristic')), h('td', {}, w('best')), h('td', {}, e.kept ? '예' : '아니오')); })));
   // 내 대전
   const re = $('#aiReport'); re.innerHTML = '';
   if (!rep.total) re.append(h('div', { class: 'empty' }, '대전 탭에서 승리/패배를 기록하면 여기서 분석합니다.'));

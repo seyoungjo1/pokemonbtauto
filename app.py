@@ -113,14 +113,39 @@ def app_version():
     return p.read_text(encoding="utf-8").strip() if p.is_file() else "dev"
 
 
+LEAGUE_KO = {"showdown_random": "쇼다운 기본 AI", "max_damage": "최대 데미지 AI", "heuristic": "선생님 AI",
+             "best": "이전 최고 신경망", "random": "완전 무작위"}
+
+
+def _overnight_state():
+    p = USER / "overnight" / "state.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
+    except Exception:
+        return {}
+
+
 @app.route("/api/meta")
 def api_meta():
     d = dex()
     models = {}
+    from engine import nets as _nets
+    state = _overnight_state()
     for gt in ("singles", "doubles"):
-        m = M.load(gt)
-        if m:
-            models[gt] = {k: m.info.get(k) for k in ("created", "games", "metrics", "league", "dataVersion")}
+        p = _nets.path_for(gt)
+        if not p.is_file():
+            continue
+        try:
+            nd = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        info = nd.get("info") or {}
+        last = next((e for e in reversed(state.get("progress", [])) if e.get("gameType") == gt and e.get("kept")), None)
+        models[gt] = {"created": nd.get("created"), "games": info.get("games") or nd.get("games"),
+                      "decisions": info.get("decisions"), "metrics": info.get("metrics") or {},
+                      "inputs": nd.get("ds", 0) + nd.get("do", 0) // 2, "surgery": info.get("surgery"),
+                      "league": {k: {**v, "ko": LEAGUE_KO.get(k, k), "wins": round(v.get("winrate", 0) * v.get("played", 0))}
+                                 for k, v in ((last or {}).get("league") or {}).items()}}
     return ok(version=app_version(), data=d.meta, mod=cfg().get("mod") or "champions",
               dataDirs=[{"mod": p.name, "meta": json.loads((p / "meta.json").read_text(encoding="utf-8"))}
                         for p in data_dirs()],
@@ -492,7 +517,24 @@ def api_ai_info():
     sp = HERE / "reports" / "selftest.json"
     if sp.is_file():
         st = json.loads(sp.read_text(encoding="utf-8"))
-    return ok(ledger=led, history=hist, selftest=st)
+    # 학습 데이터 현황: 사람 기보(리플레이) · 나와 둔 대전 · 패치 감지
+    data = {"replays": 0, "replayGames": {}, "vsUser": 0, "patch": None}
+    ix = USER / "replays" / "index.json"
+    if ix.is_file():
+        try:
+            data["replays"] = sum(len(v) for v in json.loads(ix.read_text(encoding="utf-8")).get("seen", {}).values())
+        except Exception:
+            pass
+    data["vsUser"] = len(list((USER / "selfplay").glob("*/games_*_vsuser_*.jsonl.gz")))
+    pd = HERE / "reports" / "patch_diff.json"
+    if pd.is_file():
+        try:
+            j = json.loads(pd.read_text(encoding="utf-8"))
+            data["patch"] = {"changes": j.get("changes", 0), "from": j.get("from"), "to": j.get("to"),
+                             "focus": list((j.get("focus") or {}).items())[:12]}
+        except Exception:
+            pass
+    return ok(ledger=led, history=hist, selftest=st, overnight=_overnight_state().get("progress", [])[-40:], data=data)
 
 
 SELFTEST = {"running": False, "result": None}
