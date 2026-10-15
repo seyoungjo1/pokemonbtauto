@@ -229,14 +229,19 @@ def check_features(dex):
           "moves": ["electroshot", "flashcannon", "dracometeor", "bodypress"]}
     g1 = montoken.weather_profile(dex, ar)["gain"]["rain"]
     g2 = montoken.weather_profile(dex, {**ar, "moves": ["flashcannon", "dracometeor", "bodypress", "thunderbolt"]})["gain"]["rain"]
-    from engine import benchmarks
+    from engine import benchmarks, tinytf, tokens
     be = benchmarks.validate(dex)
+    tk = tokens.selfcheck(dex)
+    be += tk.get("errors") or []
+    tf = tinytf.selfcheck()
+    if not tf.get("ok"):
+        be.append(f"numpy 트랜스포머 기울기 검사 실패 (최대 상대오차 {tf.get('maxRelErr')})")
     sp_ = benchmarks.sprt(80, 40)["decision"], benchmarks.sprt(40, 80)["decision"], benchmarks.sprt(5, 5)["decision"]
     if sp_ != ("accept", "reject", "continue"):
         be.append(f"SPRT 판정 이상: {sp_}")
     ok = r.get("ok") and t["ok"] and g1 > 0.5 and g2 == 0 and not be
     return {**r, "ok": bool(ok), "errors": (r.get("errors") or []) + be,
-            "summary": f"{r.get('summary', '')} · 포켓몬 {t['summary']} · 날씨 이득(잔비+일렉트로빔 {g1:.2f}) · 벤치마크 팀 {len(benchmarks.SINGLES)}개 검증"}
+            "summary": f"{r.get('summary', '')} · 포켓몬 {t['summary']} · 날씨 이득(잔비+일렉트로빔 {g1:.2f}) · 벤치마크 팀 {len(benchmarks.SINGLES)}개 검증 · 하위 토큰 {tk['dims']} · 트랜스포머 기울기 오차 {tf.get('maxRelErr', 0):.0e}"}
 
 
 def check_sim():
