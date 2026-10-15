@@ -194,12 +194,19 @@ def train_imitation(gt, epochs=20, max_games=20000, log=print, eval_games=40):
         log("학습할 결정이 너무 적습니다.")
         return None
     tr, va = nets.split(data)
-    net = nets.PolicyValueNet(len(data["S"][0]), data["O"][0].shape[1])
-    net.set_norm([data["S"][i] for i in tr[:20000]], [data["O"][i] for i in tr[:20000]])
-    if nets_torch.available():
-        nets_torch.fit_torch(net, data, tr, va, epochs=epochs, log=log)
+    cur = nets.load_net(gt)
+    if cur is not None:   # 지금 신경망에서 이어서 (변수가 바뀌었으면 수술)
+        net = nets.surgery(cur, log=log)
+        nets.fit_new_norms(net, data)
+        lr = 3e-4
     else:
-        net.fit_numpy(data, epochs=min(epochs, 12), tr_idx=tr, val_idx=va, log=log)
+        net = nets.PolicyValueNet(len(data["S"][0]), data["O"][0].shape[1])
+        net.set_norm([data["S"][i] for i in tr[:20000]], [data["O"][i] for i in tr[:20000]])
+        lr = 1e-3
+    if nets_torch.available():
+        nets_torch.fit_torch(net, data, tr, va, epochs=epochs, lr=lr, log=log)
+    else:
+        net.fit_numpy(data, epochs=min(epochs, 12), lr=lr, tr_idx=tr, val_idx=va, log=log)
     m = net.evaluate(data, va[:3000])
     net.info = {"metrics": m, "games": data["meta"]["games"], "decisions": len(data["S"]), "source": "replay-imitation"}
     cand = ROOT / "models" / f"net_{gt}_candidate.json"

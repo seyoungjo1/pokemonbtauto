@@ -1,0 +1,79 @@
+# 쇼다운 기보 학습 (매주 · 수동 실행 가능)
+#  1. 챔피언스 BSS(싱글)·VGC(더블) 리플레이를 받는다 — 받은 원본은 캐시에 쌓여 다음 실행에 이어짐
+#  2. 관전자 로그 → 양쪽 플레이어 시점의 결정 기록 (engine/replay_parse.py)
+#  3. 지금 신경망에서 이어서(필요하면 신경망 수술) 기보로 학습 → 기본 AI·지금 신경망과 대결
+#  4. 지금 신경망을 55% 이상 이길 때만 교체 → manifest 갱신 후 main 에 커밋 → 사용자 PC 의 '업데이트' 가 받아 감
+name: 쇼다운 기보 학습
+
+on:
+  schedule:
+    - cron: '41 20 * * 0'   # 매주 월요일 05:41 (한국 시간)
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: '형식마다 받을 리플레이 목록 쪽수 (한 쪽 50판)'
+        default: '20'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: replay-learn
+  cancel-in-progress: false
+
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy
+
+      - name: 받은 리플레이 캐시
+        uses: actions/cache@v4
+        with:
+          path: userdata/replays
+          key: replays-${{ github.run_id }}
+          restore-keys: replays-
+
+      - name: 쇼다운 빌드 (평가 대전용)
+        run: |
+          git clone --depth 1 https://github.com/smogon/pokemon-showdown.git build/pokemon-showdown
+          cd build/pokemon-showdown
+          npm ci --no-audit --no-fund
+          node build
+
+      - name: 리플레이 받기 · 해석
+        run: |
+          python tools/fetch_replays.py fetch --pages "${{ github.event.inputs.pages || '20' }}"
+          python tools/fetch_replays.py parse
+
+      - name: 기보로 학습 · 평가 (싱글 · 더블)
+        env:
+          PS_DIR: build/pokemon-showdown
+        run: |
+          python tools/fetch_replays.py train --type singles --epochs 12 --eval-games 60 || echo "싱글 학습 건너뜀"
+          python tools/fetch_replays.py train --type doubles --epochs 12 --eval-games 40 || echo "더블 학습 건너뜀"
+          python tests/selftest.py data features replay net
+
+      - name: 채택된 신경망 커밋
+        run: |
+          rm -f models/*_candidate.json
+          python tools/make_manifest.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add models manifest.json reports/selftest.json
+          if git diff --cached --quiet; then
+            echo "교체된 신경망 없음"
+          else
+            git commit -m "쇼다운 기보로 학습한 신경망 채택"
+            git push origin main
+          fi
