@@ -209,11 +209,16 @@ class TeamOptimizer:
 
     # ------------------------------------------------------------ 최적화
     def optimize(self, team=None, steps=30, locked=(), time_budget=None, progress=None) -> dict:
+        """한 군데씩 바꿔 보며 승률이 오르면 채택.
+        빠른 거르기(판 수 적게)와 확인(판 수 2배)은 각각 같은 판 수끼리만 비교한다 (섞으면 숫자가 어긋남)."""
         t0 = time.time()
         team = team or self.initial_team()
-        cur = self.evaluate(team)
-        history = [{"step": 0, "score": round(cur["score"], 4), "change": "출발 파티"}]
-        self.log(f"  출발 파티 승률 {cur['score']:.1%}")
+        big = self.games * 2
+        cur = self.evaluate(team)                    # 빠른 거르기 기준
+        cur_big = self.evaluate(team, games=big)     # 확인 기준
+        start_big = cur_big["score"]
+        history = [{"step": 0, "score": round(cur_big["score"], 4), "change": "출발 파티"}]
+        self.log(f"  출발 파티 승률 {cur_big['score']:.1%}")
         for step in range(1, steps + 1):
             if time_budget and time.time() - t0 > time_budget:
                 break
@@ -221,16 +226,15 @@ class TeamOptimizer:
             r = self.evaluate(cand)
             if r["score"] > cur["score"] + 0.005:
                 # 우연을 걸러내려고 판을 늘려 한 번 더 확인
-                r2 = self.evaluate(cand, games=self.games * 2)
-                c2 = self.evaluate(team, games=self.games * 2)
-                if r2["score"] > c2["score"]:
-                    team, cur = cand, r2
+                r2 = self.evaluate(cand, games=big)
+                if r2["score"] > cur_big["score"]:
+                    team, cur, cur_big = cand, r, r2
                     history.append({"step": step, "score": round(r2["score"], 4), "change": desc, "kept": True})
                     self.log(f"  {step}: {desc} → 승률 {r2['score']:.1%} (채택)")
             if progress:
-                progress(step, steps, cur["score"])
-        return {"team": team, "score": cur["score"], "perOpp": cur["perOpp"], "history": history,
-                "evals": self.evals, "seconds": round(time.time() - t0)}
+                progress(step, steps, cur_big["score"])
+        return {"team": team, "score": cur_big["score"], "startScore": start_big, "perOpp": cur_big["perOpp"],
+                "history": history, "evals": self.evals, "seconds": round(time.time() - t0)}
 
     def recommend_one(self, team5: list, top=5, candidates=None) -> list:
         """지금 파티(5마리 이하)에 넣었을 때 승률을 가장 올리는 포켓몬."""
